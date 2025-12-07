@@ -47,6 +47,42 @@ export type NewCharacterInput = {
   extraNotes?: string;
 };
 
+export type CharacterVersionDetail = {
+  id: number;
+  versionNumber: number;
+  label: string | null;
+  identitySummary: string | null;
+  physicalDescription: string | null;
+  wardrobeDescription: string | null;
+  personalityMannerisms: string | null;
+  extraNotes: string | null;
+  basePrompt: string | null;
+  negativePrompt: string | null;
+  baseSeed: number | null;
+  clonedFromVersionId: number | null;
+  createdAt: string;
+};
+
+export type CharacterWithVersions = {
+  id: number;
+  name: string;
+  description: string | null;
+  versions: CharacterVersionDetail[];
+};
+
+export type CloneCharacterVersionInput = {
+  fromVersionId: number;
+  label?: string | null;
+  identitySummary?: string | null;
+  physicalDescription?: string | null;
+  wardrobeDescription?: string | null;
+  personalityMannerisms?: string | null;
+  extraNotes?: string | null;
+  basePrompt?: string | null;
+  negativePrompt?: string | null;
+  baseSeed?: number | null;
+};
+
 export const assertSpaceOwnedByUser = async (
   spaceId: number,
   userId: number,
@@ -159,3 +195,160 @@ export const createCharacterForSpace = async (
   };
 };
 
+export const getCharacterWithVersions = async (
+  spaceId: number,
+  characterId: number,
+): Promise<CharacterWithVersions | null> => {
+  const db = getDbPool();
+
+  const [charRows] = await db.query(
+    'SELECT id, space_id, name, description FROM characters WHERE id = ? AND space_id = ? LIMIT 1',
+    [characterId, spaceId],
+  );
+  const chars = charRows as CharacterRecord[];
+  const character = chars[0];
+  if (!character) {
+    return null;
+  }
+
+  const [versionRows] = await db.query(
+    'SELECT * FROM character_versions WHERE character_id = ? ORDER BY version_number ASC',
+    [characterId],
+  );
+  const versions = versionRows as CharacterVersionRecord[];
+
+  const mapped: CharacterVersionDetail[] = versions.map((v) => ({
+    id: v.id,
+    versionNumber: v.version_number,
+    label: v.label,
+    identitySummary: v.identity_summary,
+    physicalDescription: v.physical_description,
+    wardrobeDescription: v.wardrobe_description,
+    personalityMannerisms: v.personality_mannerisms,
+    extraNotes: v.extra_notes,
+    basePrompt: v.base_prompt,
+    negativePrompt: v.negative_prompt,
+    baseSeed: v.base_seed,
+    clonedFromVersionId: v.cloned_from_version_id,
+    createdAt: v.created_at.toISOString(),
+  }));
+
+  return {
+    id: character.id,
+    name: character.name,
+    description: character.description,
+    versions: mapped,
+  };
+};
+
+export const cloneCharacterVersion = async (
+  spaceId: number,
+  characterId: number,
+  input: CloneCharacterVersionInput,
+): Promise<CharacterVersionDetail> => {
+  const db = getDbPool();
+
+  const [charRows] = await db.query(
+    'SELECT id, space_id, name, description FROM characters WHERE id = ? AND space_id = ? LIMIT 1',
+    [characterId, spaceId],
+  );
+  const chars = charRows as CharacterRecord[];
+  if (chars.length === 0) {
+    throw new Error('CHARACTER_NOT_FOUND');
+  }
+
+  const [fromRows] = await db.query(
+    'SELECT * FROM character_versions WHERE id = ? AND character_id = ? LIMIT 1',
+    [input.fromVersionId, characterId],
+  );
+  const fromList = fromRows as CharacterVersionRecord[];
+  const from = fromList[0];
+  if (!from) {
+    throw new Error('CHARACTER_VERSION_NOT_FOUND');
+  }
+
+  const [maxRows] = await db.query(
+    'SELECT MAX(version_number) AS max_version FROM character_versions WHERE character_id = ?',
+    [characterId],
+  );
+  const maxVersionRow = maxRows as Array<{ max_version: number | null }>;
+  const nextVersionNumber = (maxVersionRow[0]?.max_version ?? 0) + 1;
+
+  const label =
+    input.label && input.label.trim().length > 0
+      ? input.label
+      : `v${nextVersionNumber}`;
+
+  const identitySummary =
+    input.identitySummary !== undefined
+      ? input.identitySummary
+      : from.identity_summary;
+  const physicalDescription =
+    input.physicalDescription !== undefined
+      ? input.physicalDescription
+      : from.physical_description;
+  const wardrobeDescription =
+    input.wardrobeDescription !== undefined
+      ? input.wardrobeDescription
+      : from.wardrobe_description;
+  const personalityMannerisms =
+    input.personalityMannerisms !== undefined
+      ? input.personalityMannerisms
+      : from.personality_mannerisms;
+  const extraNotes =
+    input.extraNotes !== undefined ? input.extraNotes : from.extra_notes;
+  const basePrompt =
+    input.basePrompt !== undefined ? input.basePrompt : from.base_prompt;
+  const negativePrompt =
+    input.negativePrompt !== undefined
+      ? input.negativePrompt
+      : from.negative_prompt;
+  const baseSeed =
+    input.baseSeed !== undefined ? input.baseSeed : from.base_seed;
+
+  const [insertResult] = await db.query(
+    'INSERT INTO character_versions (character_id, version_number, label, identity_summary, physical_description, wardrobe_description, personality_mannerisms, extra_notes, base_prompt, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      characterId,
+      nextVersionNumber,
+      label,
+      identitySummary ?? null,
+      physicalDescription ?? null,
+      wardrobeDescription ?? null,
+      personalityMannerisms ?? null,
+      extraNotes ?? null,
+      basePrompt ?? null,
+      negativePrompt ?? null,
+      baseSeed ?? null,
+      from.id,
+    ],
+  );
+  const insert = insertResult as { insertId?: number };
+  const versionId = insert.insertId;
+  if (!versionId) {
+    throw new Error('CHARACTER_VERSION_CREATE_FAILED');
+  }
+
+  const [newRows] = await db.query(
+    'SELECT * FROM character_versions WHERE id = ? LIMIT 1',
+    [versionId],
+  );
+  const newList = newRows as CharacterVersionRecord[];
+  const v = newList[0];
+
+  return {
+    id: v.id,
+    versionNumber: v.version_number,
+    label: v.label,
+    identitySummary: v.identity_summary,
+    physicalDescription: v.physical_description,
+    wardrobeDescription: v.wardrobe_description,
+    personalityMannerisms: v.personality_mannerisms,
+    extraNotes: v.extra_notes,
+    basePrompt: v.base_prompt,
+    negativePrompt: v.negative_prompt,
+    baseSeed: v.base_seed,
+    clonedFromVersionId: v.cloned_from_version_id,
+    createdAt: v.created_at.toISOString(),
+  };
+};

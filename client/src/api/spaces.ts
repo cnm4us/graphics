@@ -38,6 +38,31 @@ export const createSpace = async (
   return data.space;
 };
 
+export const importSpaceContent = async (
+  spaceId: number,
+  payload: {
+    characterIds?: number[];
+    styleIds?: number[];
+  },
+): Promise<{ importedCharacters: number; importedStyles: number }> => {
+  const res = await fetch(`/api/spaces/${spaceId}/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error('SPACE_IMPORT_FAILED');
+  }
+
+  const data = (await res.json()) as {
+    importedCharacters: number;
+    importedStyles: number;
+  };
+  return data;
+};
+
 export const deleteSpace = async (id: number): Promise<void> => {
   const res = await fetch(`/api/spaces/${id}`, {
     method: 'DELETE',
@@ -48,4 +73,3 @@ export const deleteSpace = async (id: number): Promise<void> => {
     throw new Error('SPACE_DELETE_FAILED');
   }
 };
-

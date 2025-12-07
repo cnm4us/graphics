@@ -7,6 +7,7 @@ import {
 } from './service.js';
 import type { AuthPayload, PublicUser } from '../auth/service.js';
 import { listImagesForSpace, deleteImageForUser } from '../images/service.js';
+import { importContentIntoSpace } from './service.js';
 
 type AuthedRequest = Request & { user?: PublicUser; authPayload?: AuthPayload };
 
@@ -102,6 +103,62 @@ router.get('/:spaceId/images', async (req: AuthedRequest, res: Response) => {
     // eslint-disable-next-line no-console
     console.error('[spaces] List images error:', error);
     res.status(500).json({ error: 'IMAGES_LIST_FAILED' });
+  }
+});
+
+router.post('/:id/import', async (req: AuthedRequest, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ error: 'UNAUTHENTICATED' });
+    return;
+  }
+
+  const spaceId = Number(req.params.id);
+  if (!Number.isFinite(spaceId) || spaceId <= 0) {
+    res.status(400).json({ error: 'INVALID_SPACE_ID' });
+    return;
+  }
+
+  const body = req.body as {
+    characterIds?: number[];
+    styleIds?: number[];
+  };
+
+  const characterIds =
+    Array.isArray(body.characterIds) && body.characterIds.length > 0
+      ? body.characterIds
+          .map((v) => Number(v))
+          .filter((v) => Number.isFinite(v) && v > 0)
+      : [];
+  const styleIds =
+    Array.isArray(body.styleIds) && body.styleIds.length > 0
+      ? body.styleIds
+          .map((v) => Number(v))
+          .filter((v) => Number.isFinite(v) && v > 0)
+      : [];
+
+  if (characterIds.length === 0 && styleIds.length === 0) {
+    res.status(400).json({ error: 'NOTHING_TO_IMPORT' });
+    return;
+  }
+
+  try {
+    const result = await importContentIntoSpace(
+      user.id,
+      spaceId,
+      characterIds,
+      styleIds,
+    );
+    res.status(200).json(result);
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+    if (message === 'SPACE_NOT_FOUND_OR_FORBIDDEN') {
+      res.status(404).json({ error: 'SPACE_NOT_FOUND' });
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.error('[spaces] Import content error:', error);
+    res.status(500).json({ error: 'SPACE_IMPORT_FAILED' });
   }
 });
 

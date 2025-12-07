@@ -3,6 +3,8 @@ import { Link, Route, Routes } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
+import { CharactersPage } from './pages/CharactersPage.tsx';
+import { StylesPage } from './pages/StylesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 
 export default function App(): JSX.Element {
@@ -16,6 +18,11 @@ export default function App(): JSX.Element {
           <Link to="/login">Login</Link>
           <Link to="/register">Register</Link>
           <Link to="/dashboard">Dashboard</Link>
+          <Link to="/spaces">Spaces</Link>
+          <Link to="/generate">Generate</Link>
+          <Link to="/characters">Characters</Link>
+          <Link to="/styles">Styles</Link>
+          <Link to="/scenes">Scenes</Link>
           {user && (
             <>
               <span style={{ marginLeft: 'auto' }}>
@@ -39,6 +46,11 @@ export default function App(): JSX.Element {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/spaces" element={<DashboardPage />} />
+          <Route path="/generate" element={<DashboardPage />} />
+          <Route path="/characters" element={<CharactersPage />} />
+          <Route path="/styles" element={<StylesPage />} />
+          <Route path="/scenes" element={<DashboardPage />} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
       </main>

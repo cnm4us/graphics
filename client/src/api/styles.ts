@@ -9,6 +9,28 @@ export type StyleSummary = {
   };
 };
 
+export type StyleVersionDetail = {
+  id: number;
+  versionNumber: number;
+  label: string | null;
+  artStyle: string | null;
+  colorPalette: string | null;
+  lighting: string | null;
+  camera: string | null;
+  renderTechnique: string | null;
+  negativePrompt: string | null;
+  baseSeed: number | null;
+  clonedFromVersionId: number | null;
+  createdAt: string;
+};
+
+export type StyleWithVersions = {
+  id: number;
+  name: string;
+  description: string | null;
+  versions: StyleVersionDetail[];
+};
+
 export const fetchStyles = async (
   spaceId: number,
 ): Promise<StyleSummary[]> => {
@@ -40,5 +62,53 @@ export const createStyle = async (
   }
   const data = (await res.json()) as { style: StyleSummary };
   return data.style;
+};
+
+export const fetchStyleWithVersions = async (
+  spaceId: number,
+  styleId: number,
+): Promise<StyleWithVersions> => {
+  const res = await fetch(
+    `/api/spaces/${spaceId}/styles/${styleId}/versions`,
+    {
+      credentials: 'include',
+    },
+  );
+  if (!res.ok) {
+    throw new Error('STYLE_VERSIONS_FETCH_FAILED');
+  }
+  const data = (await res.json()) as { style: StyleWithVersions };
+  return data.style;
+};
+
+export const cloneStyleVersion = async (
+  spaceId: number,
+  styleId: number,
+  payload: {
+    fromVersionId: number;
+    label?: string | null;
+    artStyle?: string | null;
+    colorPalette?: string | null;
+    lighting?: string | null;
+    camera?: string | null;
+    renderTechnique?: string | null;
+    negativePrompt?: string | null;
+    baseSeed?: number | null;
+  },
+): Promise<StyleVersionDetail> => {
+  const res = await fetch(
+    `/api/spaces/${spaceId}/styles/${styleId}/versions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) {
+    throw new Error('STYLE_VERSION_CLONE_FAILED');
+  }
+  const data = (await res.json()) as { version: StyleVersionDetail };
+  return data.version;
 };
 

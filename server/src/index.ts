@@ -14,6 +14,7 @@ import { spacesRouter } from './spaces/routes.js';
 import { charactersRouter } from './characters/routes.js';
 import { stylesRouter } from './styles/routes.js';
 import { imagesRouter } from './images/routes.js';
+import { scenesRouter } from './scenes/routes.js';
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/spaces', spacesRouter);
 app.use('/api/spaces/:spaceId/characters', charactersRouter);
 app.use('/api/spaces/:spaceId/styles', stylesRouter);
+app.use('/api/spaces/:spaceId/scenes', scenesRouter);
 app.use('/api/images', imagesRouter);
 
 const startServer = async (): Promise<void> => {

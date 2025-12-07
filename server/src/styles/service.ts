@@ -47,6 +47,40 @@ export type NewStyleInput = {
   negativePrompt?: string;
 };
 
+export type StyleVersionDetail = {
+  id: number;
+  versionNumber: number;
+  label: string | null;
+  artStyle: string | null;
+  colorPalette: string | null;
+  lighting: string | null;
+  camera: string | null;
+  renderTechnique: string | null;
+  negativePrompt: string | null;
+  baseSeed: number | null;
+  clonedFromVersionId: number | null;
+  createdAt: string;
+};
+
+export type StyleWithVersions = {
+  id: number;
+  name: string;
+  description: string | null;
+  versions: StyleVersionDetail[];
+};
+
+export type CloneStyleVersionInput = {
+  fromVersionId: number;
+  label?: string | null;
+  artStyle?: string | null;
+  colorPalette?: string | null;
+  lighting?: string | null;
+  camera?: string | null;
+  renderTechnique?: string | null;
+  negativePrompt?: string | null;
+  baseSeed?: number | null;
+};
+
 export const assertSpaceOwnedByUserForStyles = async (
   spaceId: number,
   userId: number,
@@ -158,3 +192,148 @@ export const createStyleForSpace = async (
   };
 };
 
+export const getStyleWithVersions = async (
+  spaceId: number,
+  styleId: number,
+): Promise<StyleWithVersions | null> => {
+  const db = getDbPool();
+
+  const [styleRows] = await db.query(
+    'SELECT id, space_id, name, description FROM styles WHERE id = ? AND space_id = ? LIMIT 1',
+    [styleId, spaceId],
+  );
+  const styles = styleRows as StyleRecord[];
+  const style = styles[0];
+  if (!style) {
+    return null;
+  }
+
+  const [versionRows] = await db.query(
+    'SELECT * FROM style_versions WHERE style_id = ? ORDER BY version_number ASC',
+    [styleId],
+  );
+  const versions = versionRows as StyleVersionRecord[];
+
+  const mapped: StyleVersionDetail[] = versions.map((v) => ({
+    id: v.id,
+    versionNumber: v.version_number,
+    label: v.label,
+    artStyle: v.art_style,
+    colorPalette: v.color_palette,
+    lighting: v.lighting,
+    camera: v.camera,
+    renderTechnique: v.render_technique,
+    negativePrompt: v.negative_prompt,
+    baseSeed: v.base_seed,
+    clonedFromVersionId: v.cloned_from_version_id,
+    createdAt: v.created_at.toISOString(),
+  }));
+
+  return {
+    id: style.id,
+    name: style.name,
+    description: style.description,
+    versions: mapped,
+  };
+};
+
+export const cloneStyleVersion = async (
+  spaceId: number,
+  styleId: number,
+  input: CloneStyleVersionInput,
+): Promise<StyleVersionDetail> => {
+  const db = getDbPool();
+
+  const [styleRows] = await db.query(
+    'SELECT id, space_id, name, description FROM styles WHERE id = ? AND space_id = ? LIMIT 1',
+    [styleId, spaceId],
+  );
+  const styles = styleRows as StyleRecord[];
+  if (styles.length === 0) {
+    throw new Error('STYLE_NOT_FOUND');
+  }
+
+  const [fromRows] = await db.query(
+    'SELECT * FROM style_versions WHERE id = ? AND style_id = ? LIMIT 1',
+    [input.fromVersionId, styleId],
+  );
+  const fromList = fromRows as StyleVersionRecord[];
+  const from = fromList[0];
+  if (!from) {
+    throw new Error('STYLE_VERSION_NOT_FOUND');
+  }
+
+  const [maxRows] = await db.query(
+    'SELECT MAX(version_number) AS max_version FROM style_versions WHERE style_id = ?',
+    [styleId],
+  );
+  const maxVersionRow = maxRows as Array<{ max_version: number | null }>;
+  const nextVersionNumber = (maxVersionRow[0]?.max_version ?? 0) + 1;
+
+  const label =
+    input.label && input.label.trim().length > 0
+      ? input.label
+      : `v${nextVersionNumber}`;
+
+  const artStyle =
+    input.artStyle !== undefined ? input.artStyle : from.art_style;
+  const colorPalette =
+    input.colorPalette !== undefined ? input.colorPalette : from.color_palette;
+  const lighting =
+    input.lighting !== undefined ? input.lighting : from.lighting;
+  const camera = input.camera !== undefined ? input.camera : from.camera;
+  const renderTechnique =
+    input.renderTechnique !== undefined
+      ? input.renderTechnique
+      : from.render_technique;
+  const negativePrompt =
+    input.negativePrompt !== undefined
+      ? input.negativePrompt
+      : from.negative_prompt;
+  const baseSeed =
+    input.baseSeed !== undefined ? input.baseSeed : from.base_seed;
+
+  const [insertResult] = await db.query(
+    'INSERT INTO style_versions (style_id, version_number, label, art_style, color_palette, lighting, camera, render_technique, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      styleId,
+      nextVersionNumber,
+      label,
+      artStyle ?? null,
+      colorPalette ?? null,
+      lighting ?? null,
+      camera ?? null,
+      renderTechnique ?? null,
+      negativePrompt ?? null,
+      baseSeed ?? null,
+      from.id,
+    ],
+  );
+  const insert = insertResult as { insertId?: number };
+  const versionId = insert.insertId;
+  if (!versionId) {
+    throw new Error('STYLE_VERSION_CREATE_FAILED');
+  }
+
+  const [newRows] = await db.query(
+    'SELECT * FROM style_versions WHERE id = ? LIMIT 1',
+    [versionId],
+  );
+  const newList = newRows as StyleVersionRecord[];
+  const v = newList[0];
+
+  return {
+    id: v.id,
+    versionNumber: v.version_number,
+    label: v.label,
+    artStyle: v.art_style,
+    colorPalette: v.color_palette,
+    lighting: v.lighting,
+    camera: v.camera,
+    renderTechnique: v.render_technique,
+    negativePrompt: v.negative_prompt,
+    baseSeed: v.base_seed,
+    clonedFromVersionId: v.cloned_from_version_id,
+    createdAt: v.created_at.toISOString(),
+  };
+};
