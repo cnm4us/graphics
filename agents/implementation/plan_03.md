@@ -34,12 +34,12 @@ Testing: Call `POST /api/spaces/:id/clone` with a space that has characters/styl
 Checkpoint: Wait for developer approval before proceeding.
 
 4. Create a dedicated SpacesListPage for `/spaces`  
-Status: Pending  
+Status: Completed  
 Testing: Run the frontend dev server and navigate to `/spaces`; verify that it shows the list of spaces, allows creating a space, and provides navigation actions (e.g., “Open space”, “Clone”, “Delete”) without breaking existing behavior elsewhere.  
 Checkpoint: Wait for developer approval before proceeding.
 
 5. Create a SpaceDetailPage bound to `/spaces/:spaceId`  
-Status: Pending  
+Status: Completed  
 Testing: Navigate to `/spaces/:spaceId` for an existing space; verify that the page loads the space via `GET /api/spaces/:id`, handles invalid IDs with a clear error or redirect, and exposes basic edit/delete/clone actions at the top of the page.  
 Checkpoint: Wait for developer approval before proceeding.
 
@@ -65,8 +65,8 @@ Checkpoint: Wait for developer approval before proceeding.
 - Step 1 — Status: Completed — Current routing and page responsibilities documented below.  
 - Step 2 — Status: Pending.  
 - Step 3 — Status: Pending.  
-- Step 4 — Status: Pending.  
-- Step 5 — Status: Pending.  
+- Step 4 — Status: Completed — SpacesListPage implemented and wired to `/spaces`, with create/import and per-space gallery behavior.  
+- Step 5 — Status: Completed — Minimal SpaceDetailPage implemented and wired to `/spaces/:spaceId` so deep links resolve to a per-space view.  
 - Step 6 — Status: Pending.  
 - Step 7 — Status: Pending.  
 - Step 8 — Status: Pending.
@@ -158,4 +158,3 @@ Checkpoint: Wait for developer approval before proceeding.
 - The selected space is tracked in component state (`selectedSpaceId`) rather than in the URL; refreshing or navigating via history can lead to confusing “reversion” behavior when the implied active space changes.
 - `/characters` and `/styles` each implement their own space selection and management flows, duplicating logic that also exists in `DashboardPage`, and reinforcing the lack of a single per-space detail canonical route.
 - The backend provides list/create/delete operations on `/api/spaces`, but lacks a clear `GET/PATCH /api/spaces/:id` pair for treating a single space as a first-class resource, which would align better with a `/spaces/:spaceId` detail page.
-
