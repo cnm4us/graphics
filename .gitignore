@@ -1,0 +1,15 @@
+node_modules
+dist
+
+.env
+.env.*
+**/.env
+**/.env.*
+
+keys
+
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+*.log
+.DS_Store
