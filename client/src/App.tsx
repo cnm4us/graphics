@@ -5,6 +5,8 @@ import { RegisterPage } from './pages/RegisterPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { CharactersPage } from './pages/CharactersPage.tsx';
 import { StylesPage } from './pages/StylesPage.tsx';
+import { SpacesListPage } from './pages/SpacesListPage.tsx';
+import { SpaceDetailPage } from './pages/SpaceDetailPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 
 export default function App(): JSX.Element {
@@ -46,7 +48,8 @@ export default function App(): JSX.Element {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/spaces" element={<DashboardPage />} />
+          <Route path="/spaces" element={<SpacesListPage />} />
+          <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
           <Route path="/generate" element={<DashboardPage />} />
           <Route path="/characters" element={<CharactersPage />} />
           <Route path="/styles" element={<StylesPage />} />

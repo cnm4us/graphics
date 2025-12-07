@@ -36,11 +36,25 @@
 - Exposed `/api/images/generate` endpoint requiring auth, taking `spaceId`, `characterVersionId`, `styleVersionId`, optional `sceneVersionId` and seed, and returning an `image` summary (including `s3Key` and `s3Url` when S3 is configured).
 - Updated Dashboard UI to include a simple "Generate image" panel for the selected space, allowing selection of character+style versions, optional seed input, and showing the last generated image metadata (seed, S3 key, and URL if available).
 
+- Added backend support for richer asset management:
+  - Character + character_version and style + style_version helpers now expose version lists and clone endpoints, with auth and space-ownership checks.
+  - Spaces service gains an `importContentIntoSpace` helper and `/api/spaces/:id/import` route to copy characters/styles (with all versions) between spaces owned by the same user.
+  - Scenes listing is implemented via `server/src/scenes/*` and wired at `/api/spaces/:spaceId/scenes`, plus a matching `client/src/api/scenes.ts`.
+  - Express index mounts the new scenes router alongside existing auth/spaces/characters/styles/images routers.
+- Frontend routing and pages:
+  - `App.tsx` navigation now includes dedicated `/characters` and `/styles` routes instead of overloading the dashboard with mode flags.
+  - New `CharactersPage` and `StylesPage` components allow selecting a space, listing its characters/styles, and creating new ones while reusing the shared API layer.
+  - The legacy `DashboardPage` remains as an all-in-one view for spaces, generation, and gallery, keeping existing workflows working while more focused pages are introduced.
+
 ## 3.3 Open Questions / Deferred Tasks
 - Awaiting the user’s “low down” on the new project: domain, goals, tech stack preferences, and any constraints.
 - Need to know whether to initialize this as a library, app, or multi-package workspace.
+- Need to finish wiring the cross-space import UX on `/spaces` so users can select characters/styles from existing spaces when creating a new one (API and helpers exist).
+- Decide where to surface character/style version history and cloning in the UI (per-space view vs dedicated detail pages).
+- Scenes are currently list-only; creation, editing, versioning, and integration into the generation flow are still pending.
 
 ## 3.4 Suggestions for Next Threadself
 - After requirements are provided, clarify Interaction Mode (Architecture vs Implementation Plan vs Execution).
 - Once a concrete feature or setup task is agreed, create an implementation plan in `agents/implementation/` if the work is multi-step.
 - Keep this handoff file updated only after meaningful implementation progress (per `handoff_process.md`).
+- When extending UI, prefer new focused pages (e.g., `/spaces`, `/generate`, `/space/:id`) over further complicating `DashboardPage`, and reuse the existing API helpers for imports and versioning.
