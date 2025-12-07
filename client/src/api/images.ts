@@ -54,3 +54,17 @@ export const fetchImagesForSpace = async (
   return data.images;
 };
 
+export const deleteImage = async (
+  spaceId: number,
+  imageId: number,
+): Promise<void> => {
+  const res = await fetch(`/api/spaces/${spaceId}/images/${imageId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!res.ok && res.status !== 404) {
+    throw new Error('IMAGE_DELETE_FAILED');
+  }
+};
+

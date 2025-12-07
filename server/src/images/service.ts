@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { env } from '../config/env.js';
-import { uploadImageToS3 } from '../storage/s3Client.js';
+import { uploadImageToS3, deleteObjectFromS3 } from '../storage/s3Client.js';
 import { getDbPool } from '../db/index.js';
 import { assertSpaceOwnedByUser } from '../characters/service.js';
 import { getSignedImageUrl } from './cloudfront.js';
@@ -164,6 +164,48 @@ const normalizeSeed = (value?: number): number | undefined => {
   // Force into signed 32-bit range, then make non-negative.
   const int32 = int | 0;
   return Math.abs(int32);
+};
+
+const logImageUsageEvent = async (params: {
+  userId: number;
+  spaceId: number;
+  imageId: number | null;
+  action: 'CREATE' | 'DELETE';
+  modelName: string;
+  seed?: number | null;
+  s3Key?: string | null;
+}): Promise<void> => {
+  const db = getDbPool();
+  const seedValue =
+    params.seed !== undefined && params.seed !== null ? params.seed : null;
+  const s3KeyValue =
+    params.s3Key !== undefined && params.s3Key !== null ? params.s3Key : null;
+
+  try {
+    await db.query(
+      `INSERT INTO image_usage_events (
+        user_id,
+        space_id,
+        image_id,
+        action,
+        model_name,
+        seed,
+        s3_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.userId,
+        params.spaceId,
+        params.imageId,
+        params.action,
+        params.modelName,
+        seedValue,
+        s3KeyValue,
+      ],
+    );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[images] Failed to log usage event:', error);
+  }
 };
 
 export const generateImageForUser = async (
@@ -376,7 +418,7 @@ export const generateImageForUser = async (
 
     const cloudfrontUrl = getSignedImageUrl(key);
 
-    return {
+    const summary: ImageSummary = {
       id: imageId,
       spaceId: input.spaceId,
       characterVersionId: input.characterVersionId,
@@ -390,6 +432,18 @@ export const generateImageForUser = async (
       cloudfrontUrl,
       createdAt,
     };
+
+    await logImageUsageEvent({
+      userId: input.userId,
+      spaceId: input.spaceId,
+      imageId,
+      action: 'CREATE',
+      modelName: env.imageModel,
+      seed: effectiveSeed,
+      s3Key: key,
+    });
+
+    return summary;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('[images] Generate error:', error);
@@ -441,4 +495,55 @@ export const listImagesForSpace = async (
       createdAt,
     };
   });
+};
+
+export const deleteImageForUser = async (
+  userId: number,
+  spaceId: number,
+  imageId: number,
+): Promise<boolean> => {
+  const db = getDbPool();
+
+  await assertSpaceOwnedByUser(spaceId, userId);
+
+  const [rows] = await db.query(
+    'SELECT id, space_id, s3_key, seed, model_name, deleted_at FROM images WHERE id = ? AND space_id = ? LIMIT 1',
+    [imageId, spaceId],
+  );
+  const list = rows as Array<{
+    id: number;
+    space_id: number;
+    s3_key: string;
+    seed: number;
+    model_name: string;
+    deleted_at: Date | null;
+  }>;
+
+  const image = list[0];
+  if (!image) {
+    return false;
+  }
+
+  if (image.deleted_at) {
+    return false;
+  }
+
+  await db.query(
+    'UPDATE images SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [imageId],
+  );
+
+  await deleteObjectFromS3(image.s3_key);
+
+  await logImageUsageEvent({
+    userId,
+    spaceId,
+    imageId,
+    action: 'DELETE',
+    modelName: image.model_name,
+    seed: image.seed,
+    s3Key: image.s3_key,
+  });
+
+  return true;
 };

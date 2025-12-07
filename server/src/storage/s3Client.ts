@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../config/env.js';
 
 let s3Client: S3Client | null = null;
@@ -39,6 +39,27 @@ export const uploadImageToS3 = async (
   });
 
   await client.send(command);
+};
+
+export const deleteObjectFromS3 = async (key: string): Promise<void> => {
+  const client = getS3Client();
+  if (!client || !env.s3.bucket) {
+    // If S3 is not configured, treat as a no-op.
+    return;
+  }
+
+  const command = new DeleteObjectCommand({
+    Bucket: env.s3.bucket,
+    Key: key,
+  });
+
+  try {
+    await client.send(command);
+  } catch (error) {
+    // For now, log and continue; we want DB state to remain consistent even if S3 cleanup fails.
+    // eslint-disable-next-line no-console
+    console.error('[s3] Failed to delete object:', key, error);
+  }
 };
 
 export const logS3Status = (): void => {

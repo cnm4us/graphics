@@ -22,6 +22,7 @@ import {
   fetchImagesForSpace,
   type GeneratedImage,
 } from '../api/images.ts';
+import { deleteImage as deleteImageApi } from '../api/images.ts';
 
 export function DashboardPage(): JSX.Element {
   const { user, loading } = useAuth();
@@ -221,6 +222,22 @@ export function DashboardPage(): JSX.Element {
       const message =
         error instanceof Error ? error.message : 'IMAGE_GENERATION_FAILED';
       setImageError(message);
+    }
+  };
+
+  const handleDeleteImage = async (image: GeneratedImage): Promise<void> => {
+    if (!selectedSpaceId) return;
+    try {
+      await deleteImageApi(selectedSpaceId, image.id);
+      setImages((prev) => prev.filter((img) => img.id !== image.id));
+      if (lastGenerated && lastGenerated.id === image.id) {
+        setLastGenerated(null);
+      }
+      if (modalImage && modalImage.id === image.id) {
+        setModalImage(null);
+      }
+    } catch (error) {
+      setImagesError('Failed to delete image.');
     }
   };
 
@@ -649,6 +666,16 @@ export function DashboardPage(): JSX.Element {
                   dateStyle: 'short',
                   timeStyle: 'short',
                 })}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeleteImage(modalImage);
+                  }}
+                >
+                  Delete image
+                </button>
               </div>
             </div>
           </div>

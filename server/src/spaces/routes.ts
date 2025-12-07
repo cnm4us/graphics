@@ -6,7 +6,7 @@ import {
   listSpacesForUser,
 } from './service.js';
 import type { AuthPayload, PublicUser } from '../auth/service.js';
-import { listImagesForSpace } from '../images/service.js';
+import { listImagesForSpace, deleteImageForUser } from '../images/service.js';
 
 type AuthedRequest = Request & { user?: PublicUser; authPayload?: AuthPayload };
 
@@ -104,5 +104,46 @@ router.get('/:spaceId/images', async (req: AuthedRequest, res: Response) => {
     res.status(500).json({ error: 'IMAGES_LIST_FAILED' });
   }
 });
+
+router.delete(
+  '/:spaceId/images/:imageId',
+  async (req: AuthedRequest, res: Response) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ error: 'UNAUTHENTICATED' });
+      return;
+    }
+
+    const spaceId = Number(req.params.spaceId);
+    const imageId = Number(req.params.imageId);
+
+    if (!Number.isFinite(spaceId) || spaceId <= 0) {
+      res.status(400).json({ error: 'INVALID_SPACE_ID' });
+      return;
+    }
+    if (!Number.isFinite(imageId) || imageId <= 0) {
+      res.status(400).json({ error: 'INVALID_IMAGE_ID' });
+      return;
+    }
+
+    try {
+      const deleted = await deleteImageForUser(user.id, spaceId, imageId);
+      if (!deleted) {
+        res.status(404).json({ error: 'IMAGE_NOT_FOUND' });
+        return;
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+      if (message === 'SPACE_NOT_FOUND_OR_FORBIDDEN') {
+        res.status(404).json({ error: 'SPACE_NOT_FOUND' });
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.error('[spaces] Delete image error:', error);
+      res.status(500).json({ error: 'IMAGE_DELETE_FAILED' });
+    }
+  },
+);
 
 export { router as spacesRouter };

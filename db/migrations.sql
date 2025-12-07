@@ -211,3 +211,37 @@ CREATE TABLE IF NOT EXISTS images (
     ON DELETE SET NULL
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ensure images has a soft-delete marker for safe removal while keeping history.
+ALTER TABLE images
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL DEFAULT NULL
+  AFTER created_at;
+
+-- Usage / billing log for image generation and deletion.
+CREATE TABLE IF NOT EXISTS image_usage_events (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  space_id BIGINT UNSIGNED NOT NULL,
+  image_id BIGINT UNSIGNED NULL,
+  action ENUM('CREATE','DELETE') NOT NULL,
+  model_name VARCHAR(255) NOT NULL,
+  seed BIGINT UNSIGNED NULL,
+  s3_key VARCHAR(512) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_image_usage_user_id (user_id),
+  KEY idx_image_usage_space_id (space_id),
+  KEY idx_image_usage_image_id (image_id),
+  CONSTRAINT fk_image_usage_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT fk_image_usage_space
+    FOREIGN KEY (space_id) REFERENCES spaces (id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT fk_image_usage_image
+    FOREIGN KEY (image_id) REFERENCES images (id)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
