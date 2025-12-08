@@ -23,6 +23,9 @@ export function SpaceImagesPage(): JSX.Element {
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [imagesError, setImagesError] = useState<string | null>(null);
   const [modalImage, setModalImage] = useState<GeneratedImage | null>(null);
+  const [tileSize, setTileSize] = useState<'small' | 'medium' | 'large'>(
+    'small',
+  );
 
   useEffect(() => {
     if (!loading && !user) {
@@ -99,14 +102,68 @@ export function SpaceImagesPage(): JSX.Element {
 
   return (
     <section>
-      <h2>Images in this space</h2>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Images in this space</h2>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => setTileSize('small')}
+            style={{
+              border: '1px solid #ccc',
+              background: tileSize === 'small' ? '#ddd' : '#f5f5f5',
+              padding: '2px 6px',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Small
+          </button>
+          <button
+            type="button"
+            onClick={() => setTileSize('medium')}
+            style={{
+              border: '1px solid #ccc',
+              background: tileSize === 'medium' ? '#ddd' : '#f5f5f5',
+              padding: '2px 6px',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Medium
+          </button>
+          <button
+            type="button"
+            onClick={() => setTileSize('large')}
+            style={{
+              border: '1px solid #ccc',
+              background: tileSize === 'large' ? '#ddd' : '#f5f5f5',
+              padding: '2px 6px',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Large
+          </button>
+        </div>
+      </div>
       {imagesError && <p style={{ color: 'red' }}>{imagesError}</p>}
       {images.length === 0 && <p>No images generated yet.</p>}
       {images.length > 0 && (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gridTemplateColumns:
+              tileSize === 'small'
+                ? 'repeat(auto-fill, minmax(160px, 1fr))'
+                : tileSize === 'medium'
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : 'repeat(1, minmax(0, 1fr))',
             gap: 12,
             marginTop: 12,
           }}

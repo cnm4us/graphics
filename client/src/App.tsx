@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
@@ -12,6 +12,25 @@ import { SpaceImagesPage } from './pages/SpaceImagesPage.tsx';
 import { SpaceScenesPage } from './pages/SpaceScenesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 import { LeftDrawer } from './layout/LeftDrawer.tsx';
+
+function RootRoute(): JSX.Element {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <section>
+        <h2>Loading</h2>
+        <p>Loading your account…</p>
+      </section>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+}
 
 export default function App(): JSX.Element {
   const { user, logout } = useAuth();
@@ -50,22 +69,6 @@ export default function App(): JSX.Element {
                 <Link to="/register">Register</Link>
               </>
             )}
-            {user && (
-              <>
-                <span>
-                  Signed in as {user.displayName || user.email}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void logout();
-                  }}
-                  style={{ marginLeft: '0.5rem' }}
-                >
-                  Logout
-                </button>
-              </>
-            )}
           </div>
         </div>
       </header>
@@ -77,6 +80,7 @@ export default function App(): JSX.Element {
           }}
         />
         <Routes>
+          <Route path="/" element={<RootRoute />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
