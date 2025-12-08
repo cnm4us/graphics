@@ -12,11 +12,13 @@ import {
   deleteImage as deleteImageApi,
   type GeneratedImage,
 } from '../api/images.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function SpaceGeneratePage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
 
   const spaceIdParam = params.spaceId;
   const spaceId =
@@ -46,6 +48,12 @@ export function SpaceGeneratePage(): JSX.Element {
       navigate('/login');
     }
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (spaceId) {
+      setActiveSpaceId(spaceId);
+    }
+  }, [spaceId, setActiveSpaceId]);
 
   useEffect(() => {
     if (!user || !spaceId) return;

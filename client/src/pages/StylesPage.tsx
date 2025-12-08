@@ -7,11 +7,13 @@ import {
   fetchStyles,
   type StyleSummary,
 } from '../api/styles.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function StylesPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
 
   const spaceIdParam = params.spaceId;
   const spaceIdFromParams =
@@ -62,9 +64,11 @@ export function StylesPage(): JSX.Element {
             setSelectedSpaceId(null);
           } else {
             setSelectedSpaceId(spaceIdFromParams);
+            setActiveSpaceId(spaceIdFromParams);
           }
         } else if (list.length > 0) {
           setSelectedSpaceId(list[0].id);
+          setActiveSpaceId(list[0].id);
         }
       } catch {
         setSpacesError('Failed to load spaces.');
@@ -74,7 +78,7 @@ export function StylesPage(): JSX.Element {
     };
 
     void loadSpaces();
-  }, [user, spaceIdFromParams]);
+  }, [user, spaceIdFromParams, setActiveSpaceId]);
 
   useEffect(() => {
     const loadStyles = async (): Promise<void> => {

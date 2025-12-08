@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { fetchScenes, type SceneSummary } from '../api/scenes.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function SpaceScenesPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
 
   const spaceIdParam = params.spaceId;
   const spaceId =
@@ -22,6 +24,12 @@ export function SpaceScenesPage(): JSX.Element {
       navigate('/login');
     }
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (spaceId) {
+      setActiveSpaceId(spaceId);
+    }
+  }, [spaceId, setActiveSpaceId]);
 
   useEffect(() => {
     const loadScenes = async (): Promise<void> => {

@@ -7,11 +7,13 @@ import {
   fetchCharacters,
   type CharacterSummary,
 } from '../api/characters.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function CharactersPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
 
   const spaceIdParam = params.spaceId;
   const spaceIdFromParams =
@@ -37,8 +39,9 @@ export function CharactersPage(): JSX.Element {
       (!selectedSpaceId || selectedSpaceId !== spaceIdFromParams)
     ) {
       setSelectedSpaceId(spaceIdFromParams);
+      setActiveSpaceId(spaceIdFromParams);
     }
-  }, [spaceIdFromParams, selectedSpaceId]);
+  }, [spaceIdFromParams, selectedSpaceId, setActiveSpaceId]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -62,9 +65,11 @@ export function CharactersPage(): JSX.Element {
             setSelectedSpaceId(null);
           } else {
             setSelectedSpaceId(spaceIdFromParams);
+            setActiveSpaceId(spaceIdFromParams);
           }
         } else if (list.length > 0) {
           setSelectedSpaceId(list[0].id);
+          setActiveSpaceId(list[0].id);
         }
       } catch {
         setSpacesError('Failed to load spaces.');
@@ -74,7 +79,7 @@ export function CharactersPage(): JSX.Element {
     };
 
     void loadSpaces();
-  }, [user, spaceIdFromParams]);
+  }, [user, spaceIdFromParams, setActiveSpaceId]);
 
   useEffect(() => {
     const loadCharacters = async (): Promise<void> => {

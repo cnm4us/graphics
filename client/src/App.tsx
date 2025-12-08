@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
@@ -11,42 +11,71 @@ import { SpaceGeneratePage } from './pages/SpaceGeneratePage.tsx';
 import { SpaceImagesPage } from './pages/SpaceImagesPage.tsx';
 import { SpaceScenesPage } from './pages/SpaceScenesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
+import { LeftDrawer } from './layout/LeftDrawer.tsx';
 
 export default function App(): JSX.Element {
   const { user, logout } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <div className="app">
       <header style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
-        <h1 style={{ margin: 0 }}>Graphics Workshop</h1>
-        <nav style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem' }}>
-          <Link to="/login">Login</Link>
-          <Link to="/register">Register</Link>
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/spaces">Spaces</Link>
-          <Link to="/generate">Generate</Link>
-          <Link to="/characters">Characters</Link>
-          <Link to="/styles">Styles</Link>
-          <Link to="/scenes">Scenes</Link>
-          {user && (
-            <>
-              <span style={{ marginLeft: 'auto' }}>
-                Signed in as {user.displayName || user.email}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  void logout();
-                }}
-                style={{ marginLeft: '0.5rem' }}
-              >
-                Logout
-              </button>
-            </>
-          )}
-        </nav>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation menu"
+            style={{
+              border: '1px solid #ccc',
+              background: '#f5f5f5',
+              padding: '4px 8px',
+              cursor: 'pointer',
+            }}
+          >
+            ☰
+          </button>
+          <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+            <h1 style={{ margin: 0 }}>Graphics Workshop</h1>
+          </Link>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+            {!user && (
+              <>
+                <Link to="/login">Login</Link>
+                <Link to="/register">Register</Link>
+              </>
+            )}
+            {user && (
+              <>
+                <span>
+                  Signed in as {user.displayName || user.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout();
+                  }}
+                  style={{ marginLeft: '0.5rem' }}
+                >
+                  Logout
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </header>
       <main style={{ padding: '1rem' }}>
+        <LeftDrawer
+          isOpen={drawerOpen}
+          onClose={() => {
+            setDrawerOpen(false);
+          }}
+        />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

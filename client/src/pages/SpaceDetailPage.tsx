@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { fetchSpaces, type Space } from '../api/spaces.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function SpaceDetailPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [spacesLoading, setSpacesLoading] = useState(false);
   const [spacesError, setSpacesError] = useState<string | null>(null);
@@ -32,6 +34,12 @@ export function SpaceDetailPage(): JSX.Element {
       try {
         const list = await fetchSpaces();
         setSpaces(list);
+        if (spaceId) {
+          const match = list.find((s) => s.id === spaceId);
+          if (match) {
+            setActiveSpaceId(spaceId);
+          }
+        }
       } catch {
         setSpacesError('Failed to load spaces.');
       } finally {
@@ -40,7 +48,7 @@ export function SpaceDetailPage(): JSX.Element {
     };
 
     void loadSpaces();
-  }, [user]);
+  }, [user, spaceId, setActiveSpaceId]);
 
   if (loading) {
     return (

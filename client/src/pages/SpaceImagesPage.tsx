@@ -6,11 +6,13 @@ import {
   deleteImage as deleteImageApi,
   type GeneratedImage,
 } from '../api/images.ts';
+import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function SpaceImagesPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
+  const { setActiveSpaceId } = useSpaceContext();
 
   const spaceIdParam = params.spaceId;
   const spaceId =
@@ -27,6 +29,12 @@ export function SpaceImagesPage(): JSX.Element {
       navigate('/login');
     }
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (spaceId) {
+      setActiveSpaceId(spaceId);
+    }
+  }, [spaceId, setActiveSpaceId]);
 
   useEffect(() => {
     const loadImages = async (): Promise<void> => {
