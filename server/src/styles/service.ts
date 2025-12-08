@@ -19,6 +19,7 @@ export type StyleVersionRecord = {
   lighting: string | null;
   camera: string | null;
   render_technique: string | null;
+  style_definition_json?: string | null;
   negative_prompt: string | null;
   base_seed: number | null;
   cloned_from_version_id: number | null;
@@ -45,6 +46,7 @@ export type NewStyleInput = {
   camera?: string;
   renderTechnique?: string;
   negativePrompt?: string;
+  styleDefinition?: Record<string, Record<string, string | string[]>>;
 };
 
 export type StyleVersionDetail = {
@@ -158,8 +160,13 @@ export const createStyleForSpace = async (
     throw new Error('STYLE_CREATE_FAILED');
   }
 
+  const styleDefinitionJson =
+    input.styleDefinition && typeof input.styleDefinition === 'object'
+      ? JSON.stringify(input.styleDefinition)
+      : JSON.stringify({});
+
   const [versionResult] = await db.query(
-    'INSERT INTO style_versions (style_id, version_number, label, art_style, color_palette, lighting, camera, render_technique, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO style_versions (style_id, version_number, label, art_style, color_palette, lighting, camera, render_technique, style_definition_json, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       styleId,
       1,
@@ -169,6 +176,7 @@ export const createStyleForSpace = async (
       input.lighting ?? null,
       input.camera ?? null,
       input.renderTechnique ?? null,
+      styleDefinitionJson,
       input.negativePrompt ?? null,
       null,
       null,
@@ -294,7 +302,7 @@ export const cloneStyleVersion = async (
     input.baseSeed !== undefined ? input.baseSeed : from.base_seed;
 
   const [insertResult] = await db.query(
-    'INSERT INTO style_versions (style_id, version_number, label, art_style, color_palette, lighting, camera, render_technique, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO style_versions (style_id, version_number, label, art_style, color_palette, lighting, camera, render_technique, style_definition_json, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       styleId,
       nextVersionNumber,
@@ -304,6 +312,7 @@ export const cloneStyleVersion = async (
       lighting ?? null,
       camera ?? null,
       renderTechnique ?? null,
+      from.style_definition_json ?? JSON.stringify({}),
       negativePrompt ?? null,
       baseSeed ?? null,
       from.id,

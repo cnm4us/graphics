@@ -63,6 +63,7 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
     camera?: string;
     renderTechnique?: string;
     negativePrompt?: string;
+    styleDefinition?: unknown;
   };
 
   const trimmedName = body.name?.trim();
@@ -87,6 +88,10 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
     camera: body.camera,
     renderTechnique: body.renderTechnique,
     negativePrompt: body.negativePrompt,
+    styleDefinition:
+      body.styleDefinition && typeof body.styleDefinition === 'object'
+        ? (body.styleDefinition as NewStyleInput['styleDefinition'])
+        : undefined,
   };
 
   try {

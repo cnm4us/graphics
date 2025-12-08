@@ -135,6 +135,11 @@ CREATE TABLE IF NOT EXISTS style_versions (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Structured style definitions for style versions, stored as JSON.
+ALTER TABLE style_versions
+  ADD COLUMN IF NOT EXISTS style_definition_json JSON NOT NULL DEFAULT ('{}')
+  AFTER render_technique;
+
 -- Scenes represent locations/environments inside a space.
 CREATE TABLE IF NOT EXISTS scenes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

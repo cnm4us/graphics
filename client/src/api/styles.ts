@@ -1,3 +1,5 @@
+import type { StyleValues } from './styleDefinitions.ts';
+
 export type StyleSummary = {
   id: number;
   name: string;
@@ -31,6 +33,12 @@ export type StyleWithVersions = {
   versions: StyleVersionDetail[];
 };
 
+export type NewStylePayload = {
+  name: string;
+  description?: string;
+  styleDefinition?: StyleValues;
+};
+
 export const fetchStyles = async (
   spaceId: number,
 ): Promise<StyleSummary[]> => {
@@ -46,10 +54,7 @@ export const fetchStyles = async (
 
 export const createStyle = async (
   spaceId: number,
-  payload: {
-    name: string;
-    description?: string;
-  },
+  payload: NewStylePayload,
 ): Promise<StyleSummary> => {
   const res = await fetch(`/api/spaces/${spaceId}/styles`, {
     method: 'POST',
@@ -111,4 +116,3 @@ export const cloneStyleVersion = async (
   const data = (await res.json()) as { version: StyleVersionDetail };
   return data.version;
 };
-

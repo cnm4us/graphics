@@ -15,6 +15,7 @@ export const clothingDefaultsCategory: AppearanceCategory = {
         { value: "jeans", label: "Jeans" }, // denim, fitted or relaxed
         { value: "athleisure", label: "Athleisure" }, // leggings, joggers, sporty tops
         { value: "dresses", label: "Dresses" }, // casual day dresses
+        { value: "cocktail_dress", label: "Black spaghetti strap cocktail dress" }, // evening wear
         { value: "uniforms", label: "Uniforms" }, // work or themed uniforms
         { value: "coats", label: "Coats" }, // outerwear-centered looks
 
