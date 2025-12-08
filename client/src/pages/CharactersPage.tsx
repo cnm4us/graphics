@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { fetchSpaces, type Space } from '../api/spaces.ts';
 import {
@@ -11,16 +11,34 @@ import {
 export function CharactersPage(): JSX.Element {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const params = useParams();
+
+  const spaceIdParam = params.spaceId;
+  const spaceIdFromParams =
+    spaceIdParam && Number.isFinite(Number(spaceIdParam))
+      ? Number(spaceIdParam)
+      : null;
 
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [spacesLoading, setSpacesLoading] = useState(false);
   const [spacesError, setSpacesError] = useState<string | null>(null);
-  const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>(null);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>(
+    spaceIdFromParams ?? null,
+  );
 
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [newCharacterName, setNewCharacterName] = useState('');
   const [newCharacterDescription, setNewCharacterDescription] = useState('');
+
+  useEffect(() => {
+    if (
+      spaceIdFromParams &&
+      (!selectedSpaceId || selectedSpaceId !== spaceIdFromParams)
+    ) {
+      setSelectedSpaceId(spaceIdFromParams);
+    }
+  }, [spaceIdFromParams, selectedSpaceId]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -37,7 +55,15 @@ export function CharactersPage(): JSX.Element {
       try {
         const list = await fetchSpaces();
         setSpaces(list);
-        if (!selectedSpaceId && list.length > 0) {
+        if (spaceIdFromParams) {
+          const match = list.find((s) => s.id === spaceIdFromParams);
+          if (!match) {
+            setSpacesError('Space not found.');
+            setSelectedSpaceId(null);
+          } else {
+            setSelectedSpaceId(spaceIdFromParams);
+          }
+        } else if (list.length > 0) {
           setSelectedSpaceId(list[0].id);
         }
       } catch {
@@ -48,7 +74,7 @@ export function CharactersPage(): JSX.Element {
     };
 
     void loadSpaces();
-  }, [user, selectedSpaceId]);
+  }, [user, spaceIdFromParams]);
 
   useEffect(() => {
     const loadCharacters = async (): Promise<void> => {
@@ -107,7 +133,11 @@ export function CharactersPage(): JSX.Element {
   return (
     <section>
       <h2>Characters</h2>
-      <p>Select a space and manage its characters.</p>
+      {spaceIdFromParams ? (
+        <p>Manage characters for this space.</p>
+      ) : (
+        <p>Select a space and manage its characters.</p>
+      )}
 
       <section style={{ marginTop: 16 }}>
         <h3>Your spaces</h3>
@@ -121,7 +151,13 @@ export function CharactersPage(): JSX.Element {
             <li key={space.id} style={{ marginBottom: 8 }}>
               <button
                 type="button"
-                onClick={() => setSelectedSpaceId(space.id)}
+                onClick={() => {
+                  if (spaceIdFromParams) {
+                    navigate(`/spaces/${space.id}/characters`);
+                  } else {
+                    setSelectedSpaceId(space.id);
+                  }
+                }}
                 style={{
                   fontWeight:
                     selectedSpaceId === space.id ? 'bold' : 'normal',
@@ -188,4 +224,3 @@ export function CharactersPage(): JSX.Element {
     </section>
   );
 }
-

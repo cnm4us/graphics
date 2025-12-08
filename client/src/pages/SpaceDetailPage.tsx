@@ -92,9 +92,23 @@ export function SpaceDetailPage(): JSX.Element {
           <p style={{ fontSize: '0.9rem', color: '#555' }}>
             Space ID: {space.id}
           </p>
+          <nav
+            aria-label="Space navigation"
+            style={{
+              marginTop: 16,
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Link to={`/spaces/${space.id}/characters`}>Characters</Link>
+            <Link to={`/spaces/${space.id}/styles`}>Styles</Link>
+            <Link to={`/spaces/${space.id}/scenes`}>Scenes</Link>
+            <Link to={`/spaces/${space.id}/generate`}>Generate</Link>
+            <Link to={`/spaces/${space.id}/images`}>Images</Link>
+          </nav>
         </div>
       )}
     </section>
   );
 }
-

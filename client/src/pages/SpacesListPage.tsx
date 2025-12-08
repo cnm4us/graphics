@@ -360,6 +360,12 @@ export function SpacesListPage(): JSX.Element {
               >
                 View images
               </button>
+              <Link
+                to={`/spaces/${space.id}/generate`}
+                style={{ marginLeft: 8 }}
+              >
+                Generate
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -529,4 +535,3 @@ export function SpacesListPage(): JSX.Element {
     </section>
   );
 }
-

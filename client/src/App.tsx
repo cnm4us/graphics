@@ -7,6 +7,9 @@ import { CharactersPage } from './pages/CharactersPage.tsx';
 import { StylesPage } from './pages/StylesPage.tsx';
 import { SpacesListPage } from './pages/SpacesListPage.tsx';
 import { SpaceDetailPage } from './pages/SpaceDetailPage.tsx';
+import { SpaceGeneratePage } from './pages/SpaceGeneratePage.tsx';
+import { SpaceImagesPage } from './pages/SpaceImagesPage.tsx';
+import { SpaceScenesPage } from './pages/SpaceScenesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 
 export default function App(): JSX.Element {
@@ -50,6 +53,17 @@ export default function App(): JSX.Element {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/spaces" element={<SpacesListPage />} />
           <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
+          <Route
+            path="/spaces/:spaceId/characters"
+            element={<CharactersPage />}
+          />
+          <Route path="/spaces/:spaceId/styles" element={<StylesPage />} />
+          <Route path="/spaces/:spaceId/scenes" element={<SpaceScenesPage />} />
+          <Route
+            path="/spaces/:spaceId/generate"
+            element={<SpaceGeneratePage />}
+          />
+          <Route path="/spaces/:spaceId/images" element={<SpaceImagesPage />} />
           <Route path="/generate" element={<DashboardPage />} />
           <Route path="/characters" element={<CharactersPage />} />
           <Route path="/styles" element={<StylesPage />} />
