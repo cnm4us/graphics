@@ -7,6 +7,10 @@ import {
   fetchCharacters,
   type CharacterSummary,
 } from '../api/characters.ts';
+import {
+  fetchImagesForSpace,
+  type GeneratedImage,
+} from '../api/images.ts';
 import { useSpaceContext } from '../space/SpaceContext.tsx';
 
 export function CharactersPage(): JSX.Element {
@@ -29,6 +33,7 @@ export function CharactersPage(): JSX.Element {
   );
 
   const [characters, setCharacters] = useState<CharacterSummary[]>([]);
+  const [imagesForSpace, setImagesForSpace] = useState<GeneratedImage[]>([]);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [newCharacterName, setNewCharacterName] = useState('');
   const [newCharacterDescription, setNewCharacterDescription] = useState('');
@@ -85,14 +90,19 @@ export function CharactersPage(): JSX.Element {
     const loadCharacters = async (): Promise<void> => {
       if (!selectedSpaceId) {
         setCharacters([]);
+        setImagesForSpace([]);
         return;
       }
       setMetaError(null);
       try {
-        const chars = await fetchCharacters(selectedSpaceId);
+        const [chars, images] = await Promise.all([
+          fetchCharacters(selectedSpaceId),
+          fetchImagesForSpace(selectedSpaceId),
+        ]);
         setCharacters(chars);
+        setImagesForSpace(images);
       } catch {
-        setMetaError('Failed to load characters.');
+        setMetaError('Failed to load characters or images.');
       }
     };
 
@@ -140,6 +150,14 @@ export function CharactersPage(): JSX.Element {
       ? spaces.find((s) => s.id === spaceIdFromParams) ?? null
       : null;
 
+  const characterHasImage = (character: CharacterSummary): boolean => {
+    const latestVersionId = character.latestVersion?.id;
+    if (!latestVersionId) return false;
+    return imagesForSpace.some(
+      (img) => img.characterVersionId === latestVersionId,
+    );
+  };
+
   return (
     <section>
       {spaceIdFromParams && activeSpace ? (
@@ -176,6 +194,18 @@ export function CharactersPage(): JSX.Element {
                     gap: 8,
                   }}
                 >
+                  {!characterHasImage(c) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}&mode=edit`,
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() =>

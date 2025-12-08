@@ -18,6 +18,7 @@ export type CharacterVersionDetail = {
   wardrobeDescription: string | null;
   personalityMannerisms: string | null;
   extraNotes: string | null;
+  appearance?: AppearanceValues | null;
   basePrompt: string | null;
   negativePrompt: string | null;
   baseSeed: number | null;
@@ -30,6 +31,40 @@ export type CharacterWithVersions = {
   name: string;
   description: string | null;
   versions: CharacterVersionDetail[];
+};
+
+export type NewCharacterPayload = {
+  name: string;
+  description?: string;
+  appearance?: AppearanceValues;
+};
+
+export const updateCharacter = async (
+  spaceId: number,
+  characterId: number,
+  payload: NewCharacterPayload,
+): Promise<CharacterSummary> => {
+  const res = await fetch(
+    `/api/spaces/${spaceId}/characters/${characterId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 400) {
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      if (data?.error === 'CHARACTER_HAS_GENERATED_IMAGES') {
+        throw new Error('CHARACTER_HAS_GENERATED_IMAGES');
+      }
+    }
+  }
+  const data = (await res.json()) as { character: CharacterSummary };
+  return data.character;
 };
 
 export const fetchCharacters = async (
@@ -47,10 +82,7 @@ export const fetchCharacters = async (
 
 export const createCharacter = async (
   spaceId: number,
-  payload: {
-    name: string;
-    description?: string;
-  },
+  payload: NewCharacterPayload,
 ): Promise<CharacterSummary> => {
   const res = await fetch(`/api/spaces/${spaceId}/characters`, {
     method: 'POST',
@@ -113,4 +145,4 @@ export const cloneCharacterVersion = async (
   const data = (await res.json()) as { version: CharacterVersionDetail };
   return data.version;
 };
-
+import type { AppearanceValues } from './characterAppearance.ts';

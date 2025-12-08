@@ -1,5 +1,10 @@
 import { getDbPool } from '../db/index.js';
 
+export type CharacterAppearanceValues = Record<
+  string,
+  Record<string, string | string[]>
+>;
+
 export type CharacterRecord = {
   id: number;
   space_id: number;
@@ -19,6 +24,7 @@ export type CharacterVersionRecord = {
   wardrobe_description: string | null;
   personality_mannerisms: string | null;
   extra_notes: string | null;
+  appearance_json?: string | null;
   base_prompt: string | null;
   negative_prompt: string | null;
   base_seed: number | null;
@@ -45,6 +51,7 @@ export type NewCharacterInput = {
   wardrobeDescription?: string;
   personalityMannerisms?: string;
   extraNotes?: string;
+   appearance?: CharacterAppearanceValues;
 };
 
 export type CharacterVersionDetail = {
@@ -56,6 +63,7 @@ export type CharacterVersionDetail = {
   wardrobeDescription: string | null;
   personalityMannerisms: string | null;
   extraNotes: string | null;
+  appearance?: CharacterAppearanceValues | null;
   basePrompt: string | null;
   negativePrompt: string | null;
   baseSeed: number | null;
@@ -81,6 +89,12 @@ export type CloneCharacterVersionInput = {
   basePrompt?: string | null;
   negativePrompt?: string | null;
   baseSeed?: number | null;
+};
+
+export type UpdateCharacterInput = {
+  name?: string;
+  description?: string;
+  appearance?: CharacterAppearanceValues;
 };
 
 export const assertSpaceOwnedByUser = async (
@@ -160,8 +174,13 @@ export const createCharacterForSpace = async (
     throw new Error('CHARACTER_CREATE_FAILED');
   }
 
+  const appearanceJson =
+    input.appearance && typeof input.appearance === 'object'
+      ? JSON.stringify(input.appearance)
+      : JSON.stringify({});
+
   const [versionResult] = await db.query(
-    'INSERT INTO character_versions (character_id, version_number, label, identity_summary, physical_description, wardrobe_description, personality_mannerisms, extra_notes, base_prompt, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO character_versions (character_id, version_number, label, identity_summary, physical_description, wardrobe_description, personality_mannerisms, extra_notes, appearance_json, base_prompt, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       characterId,
       1,
@@ -171,6 +190,7 @@ export const createCharacterForSpace = async (
       input.wardrobeDescription ?? null,
       input.personalityMannerisms ?? null,
       input.extraNotes ?? null,
+      appearanceJson,
       null,
       null,
       null,
@@ -192,6 +212,81 @@ export const createCharacterForSpace = async (
       versionNumber: 1,
       label: 'v1',
     },
+  };
+};
+
+export const updateCharacterForSpace = async (
+  spaceId: number,
+  characterId: number,
+  input: UpdateCharacterInput,
+): Promise<CharacterSummary | null> => {
+  const db = getDbPool();
+
+  const [charRows] = await db.query(
+    'SELECT id, space_id, name, description FROM characters WHERE id = ? AND space_id = ? LIMIT 1',
+    [characterId, spaceId],
+  );
+  const chars = charRows as CharacterRecord[];
+  const existing = chars[0];
+  if (!existing) {
+    return null;
+  }
+
+  const [latestVersionRows] = await db.query(
+    'SELECT id, version_number FROM character_versions WHERE character_id = ? ORDER BY version_number DESC LIMIT 1',
+    [characterId],
+  );
+  const latestVersionList = latestVersionRows as Array<{
+    id: number;
+    version_number: number;
+  }>;
+  const latestVersion = latestVersionList[0];
+
+  if (latestVersion) {
+    const [imageRows] = await db.query(
+      'SELECT id FROM images WHERE character_version_id = ? LIMIT 1',
+      [latestVersion.id],
+    );
+    const images = imageRows as Array<{ id: number }>;
+    if (images.length > 0) {
+      const error = new Error('CHARACTER_HAS_GENERATED_IMAGES');
+      throw error;
+    }
+  }
+
+  const trimmedName =
+    input.name !== undefined && input.name.trim().length > 0
+      ? input.name.trim()
+      : existing.name;
+  const trimmedDescription =
+    input.description !== undefined
+      ? input.description.trim() || null
+      : existing.description;
+
+  await db.query(
+    'UPDATE characters SET name = ?, description = ? WHERE id = ?',
+    [trimmedName, trimmedDescription, characterId],
+  );
+
+  if (input.appearance && latestVersion) {
+    const appearanceJson = JSON.stringify(input.appearance);
+    await db.query(
+      'UPDATE character_versions SET appearance_json = ? WHERE id = ?',
+      [appearanceJson, latestVersion.id],
+    );
+  }
+
+  return {
+    id: existing.id,
+    name: trimmedName,
+    description: trimmedDescription,
+    latestVersion: latestVersion
+      ? {
+          id: latestVersion.id,
+          versionNumber: latestVersion.version_number,
+          label: null,
+        }
+      : undefined,
   };
 };
 
@@ -217,21 +312,40 @@ export const getCharacterWithVersions = async (
   );
   const versions = versionRows as CharacterVersionRecord[];
 
-  const mapped: CharacterVersionDetail[] = versions.map((v) => ({
-    id: v.id,
-    versionNumber: v.version_number,
-    label: v.label,
-    identitySummary: v.identity_summary,
-    physicalDescription: v.physical_description,
-    wardrobeDescription: v.wardrobe_description,
-    personalityMannerisms: v.personality_mannerisms,
-    extraNotes: v.extra_notes,
-    basePrompt: v.base_prompt,
-    negativePrompt: v.negative_prompt,
-    baseSeed: v.base_seed,
-    clonedFromVersionId: v.cloned_from_version_id,
-    createdAt: v.created_at.toISOString(),
-  }));
+  const mapped: CharacterVersionDetail[] = versions.map((v) => {
+    let appearance: CharacterAppearanceValues | null = null;
+    if (v.appearance_json) {
+      try {
+        const parsed = JSON.parse(
+          typeof v.appearance_json === 'string'
+            ? v.appearance_json
+            : String(v.appearance_json),
+        );
+        if (parsed && typeof parsed === 'object') {
+          appearance = parsed as CharacterAppearanceValues;
+        }
+      } catch {
+        appearance = null;
+      }
+    }
+
+    return {
+      id: v.id,
+      versionNumber: v.version_number,
+      label: v.label,
+      identitySummary: v.identity_summary,
+      physicalDescription: v.physical_description,
+      wardrobeDescription: v.wardrobe_description,
+      personalityMannerisms: v.personality_mannerisms,
+      extraNotes: v.extra_notes,
+      appearance,
+      basePrompt: v.base_prompt,
+      negativePrompt: v.negative_prompt,
+      baseSeed: v.base_seed,
+      clonedFromVersionId: v.cloned_from_version_id,
+      createdAt: v.created_at.toISOString(),
+    };
+  });
 
   return {
     id: character.id,
@@ -307,7 +421,7 @@ export const cloneCharacterVersion = async (
     input.baseSeed !== undefined ? input.baseSeed : from.base_seed;
 
   const [insertResult] = await db.query(
-    'INSERT INTO character_versions (character_id, version_number, label, identity_summary, physical_description, wardrobe_description, personality_mannerisms, extra_notes, base_prompt, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO character_versions (character_id, version_number, label, identity_summary, physical_description, wardrobe_description, personality_mannerisms, extra_notes, appearance_json, base_prompt, negative_prompt, base_seed, cloned_from_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       characterId,
       nextVersionNumber,
@@ -317,6 +431,7 @@ export const cloneCharacterVersion = async (
       wardrobeDescription ?? null,
       personalityMannerisms ?? null,
       extraNotes ?? null,
+      from.appearance_json ?? JSON.stringify({}),
       basePrompt ?? null,
       negativePrompt ?? null,
       baseSeed ?? null,

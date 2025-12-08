@@ -8,6 +8,8 @@ import {
   type NewCharacterInput,
   getCharacterWithVersions,
   cloneCharacterVersion,
+  updateCharacterForSpace,
+  type UpdateCharacterInput,
 } from './service.js';
 
 type AuthedRequest = Request & { user?: PublicUser; authPayload?: AuthPayload };
@@ -57,6 +59,7 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
   const body = req.body as {
     name?: string;
     description?: string;
+    appearance?: unknown;
     identitySummary?: string;
     physicalDescription?: string;
     wardrobeDescription?: string;
@@ -85,6 +88,10 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
     wardrobeDescription: body.wardrobeDescription,
     personalityMannerisms: body.personalityMannerisms,
     extraNotes: body.extraNotes,
+    appearance:
+      body.appearance && typeof body.appearance === 'object'
+        ? (body.appearance as NewCharacterInput['appearance'])
+        : undefined,
   };
 
   try {
@@ -208,5 +215,68 @@ router.post(
     }
   },
 );
+
+router.patch('/:characterId', async (req: AuthedRequest, res: Response) => {
+  const user = req.user;
+  const spaceId = Number(req.params.spaceId);
+  const characterId = Number(req.params.characterId);
+
+  if (!user) {
+    res.status(401).json({ error: 'UNAUTHENTICATED' });
+    return;
+  }
+  if (!Number.isFinite(spaceId) || spaceId <= 0) {
+    res.status(400).json({ error: 'INVALID_SPACE_ID' });
+    return;
+  }
+  if (!Number.isFinite(characterId) || characterId <= 0) {
+    res.status(400).json({ error: 'INVALID_CHARACTER_ID' });
+    return;
+  }
+
+  const body = req.body as {
+    name?: string;
+    description?: string;
+    appearance?: unknown;
+  };
+
+  try {
+    await assertSpaceOwnedByUser(spaceId, user.id);
+  } catch {
+    res.status(404).json({ error: 'SPACE_NOT_FOUND' });
+    return;
+  }
+
+  const input: UpdateCharacterInput = {
+    name: body.name,
+    description: body.description,
+    appearance:
+      body.appearance && typeof body.appearance === 'object'
+        ? (body.appearance as UpdateCharacterInput['appearance'])
+        : undefined,
+  };
+
+  try {
+    const character = await updateCharacterForSpace(
+      spaceId,
+      characterId,
+      input,
+    );
+    if (!character) {
+      res.status(404).json({ error: 'CHARACTER_NOT_FOUND' });
+      return;
+    }
+    res.status(200).json({ character });
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+    if (message === 'CHARACTER_HAS_GENERATED_IMAGES') {
+      res.status(400).json({ error: 'CHARACTER_HAS_GENERATED_IMAGES' });
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.error('[characters] Update error:', error);
+    res.status(500).json({ error: 'CHARACTER_UPDATE_FAILED' });
+  }
+});
 
 export { router as charactersRouter };

@@ -4,6 +4,8 @@ import { uploadImageToS3, deleteObjectFromS3 } from '../storage/s3Client.js';
 import { getDbPool } from '../db/index.js';
 import { assertSpaceOwnedByUser } from '../characters/service.js';
 import { getSignedImageUrl } from './cloudfront.js';
+import { characterAppearanceConfig } from '../config/characterAppearance/index.js';
+import type { CharacterAppearanceValues } from '../characters/service.js';
 
 export type GenerateImageInput = {
   userId: number;
@@ -39,6 +41,7 @@ type CharacterVersionPromptRow = {
   wardrobe_description: string | null;
   personality_mannerisms: string | null;
   extra_notes: string | null;
+  appearance_json?: string | null;
   base_prompt: string | null;
   negative_prompt: string | null;
 };
@@ -46,6 +49,8 @@ type CharacterVersionPromptRow = {
 type StyleVersionPromptRow = {
   id: number;
   style_id: number;
+  style_name?: string | null;
+  style_description?: string | null;
   art_style: string | null;
   color_palette: string | null;
   lighting: string | null;
@@ -64,6 +69,96 @@ type SceneVersionPromptRow = {
   mood: string | null;
   base_prompt: string | null;
   negative_prompt: string | null;
+};
+
+const buildAppearanceLines = (
+  appearanceJson: string | null | undefined,
+): string[] => {
+  if (!appearanceJson) return [];
+
+  let values: CharacterAppearanceValues | null = null;
+  try {
+    const parsed = JSON.parse(
+      typeof appearanceJson === 'string'
+        ? appearanceJson
+        : String(appearanceJson),
+    );
+    if (parsed && typeof parsed === 'object') {
+      values = parsed as CharacterAppearanceValues;
+    }
+  } catch {
+    values = null;
+  }
+
+  if (!values) return [];
+
+  const relevantCategoryKeys = new Set<string>([
+    'core_identity',
+    'facial_structure',
+    'hair',
+    'skin',
+    'physique',
+    'distinctive_markers',
+    'clothing_defaults',
+    'character_lore',
+  ]);
+
+  const lines: string[] = [];
+
+  for (const category of characterAppearanceConfig.categories) {
+    if (!relevantCategoryKeys.has(category.key)) continue;
+
+    const categoryValues = values[category.key];
+    if (!categoryValues) continue;
+
+    const parts: string[] = [];
+
+    for (const prop of category.properties) {
+      const raw = categoryValues[prop.key];
+      if (raw === undefined || raw === null) continue;
+
+      if (prop.type === 'tags') {
+        const list = Array.isArray(raw)
+          ? raw
+          : typeof raw === 'string'
+            ? [raw]
+            : [];
+        const clean = list
+          .map((item) => `${item}`.trim())
+          .filter((item) => item.length > 0);
+        if (clean.length === 0) continue;
+        parts.push(`${prop.label}: ${clean.join(', ')}`);
+      } else if (prop.type === 'enum') {
+        const rawValue =
+          typeof raw === 'string'
+            ? raw
+            : Array.isArray(raw) && raw[0]
+              ? `${raw[0]}`
+              : '';
+        const trimmed = rawValue.trim();
+        if (!trimmed) continue;
+        const option = prop.options?.find((opt) => opt.value === trimmed);
+        const display = option?.label ?? trimmed;
+        parts.push(`${prop.label}: ${display}`);
+      } else {
+        const rawValue =
+          typeof raw === 'string'
+            ? raw
+            : Array.isArray(raw) && raw[0]
+              ? `${raw[0]}`
+              : '';
+        const trimmed = rawValue.trim();
+        if (!trimmed) continue;
+        parts.push(`${prop.label}: ${trimmed}`);
+      }
+    }
+
+    if (parts.length > 0) {
+      lines.push(`${category.label}: ${parts.join('; ')}`);
+    }
+  }
+
+  return lines;
 };
 
 const buildPrompt = (
@@ -90,6 +185,10 @@ const buildPrompt = (
     if (character.extra_notes) {
       lines.push(`Additional character notes: ${character.extra_notes}`);
     }
+    const appearanceLines = buildAppearanceLines(character.appearance_json);
+    if (appearanceLines.length > 0) {
+      lines.push(...appearanceLines);
+    }
     if (character.base_prompt) {
       lines.push(character.base_prompt);
     }
@@ -99,6 +198,18 @@ const buildPrompt = (
   }
 
   if (style) {
+    if (style.style_name) {
+      const base = style.style_name;
+      const desc =
+        typeof style.style_description === 'string'
+          ? style.style_description.trim()
+          : '';
+      if (desc) {
+        lines.push(`Style: ${base} — ${desc}`);
+      } else {
+        lines.push(`Style: ${base}`);
+      }
+    }
     if (style.art_style) {
       lines.push(`Art style: ${style.art_style}`);
     }
@@ -231,7 +342,7 @@ export const generateImageForUser = async (
   }
 
   const [styleRows] = await db.query(
-    `SELECT sv.*, s.space_id
+    `SELECT sv.*, s.space_id, s.name AS style_name, s.description AS style_description
      FROM style_versions sv
        JOIN styles s ON sv.style_id = s.id
      WHERE sv.id = ? AND s.space_id = ?

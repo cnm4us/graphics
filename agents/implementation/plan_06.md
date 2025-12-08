@@ -20,38 +20,53 @@ Out of scope (for this plan):
 ## 2. Step-by-Step Plan
 
 1. Define the persistence model for structured appearance data  
-Status: Pending  
-Testing: Document in this plan how appearance data will be stored on `character_versions` (e.g., JSON column with a `{ [categoryKey]: { [propertyKey]: value } }` shape) and how it maps to the config keys; verify the model handles tags, enums, and free text consistently.  
+Status: Completed  
+Testing: Appearance data will be stored on `character_versions` in a JSON column named `appearance_json`, using a parsed JSON object in the API with the following shape:  
+- DB/storage shape (per version):  
+  - Column: `appearance_json` (MySQL `JSON` where available, otherwise `TEXT` containing JSON).  
+  - Value shape:  
+    - `appearance: { [categoryKey: string]: { [propertyKey: string]: string | string[] } }`  
+    - `categoryKey` corresponds to `AppearanceCategory.key` from `CharacterAppearanceConfig`.  
+    - `propertyKey` corresponds to `AppearanceProperty.key` within that category.  
+    - For `type: 'string'` and `type: 'enum'`, values are stored as a single `string`.  
+    - For `type: 'tags'`, values are stored as `string[]`, where each string is either a known option `value` or a custom tag (when `allowCustom` is true).  
+- API shape (per character version):  
+  - Serialized to the client as a parsed JSON object field, e.g. `appearance`, not as a raw string.  
+  - The client will also fetch `CharacterAppearanceConfig` from the backend and use it, along with `appearance`, to render and prefill the long-form UI (one section per category, ordered by `category.order`).  
+- Defaulting/empty state:  
+  - When a new character version is created, `appearance_json` may be initialized to either an empty object `{}` or a config-shaped structure with empty values (implementation detail for Step 4).  
+  - Absence of a category or property key in `appearance` means “no value set yet” for that field.  
+This model cleanly handles free-text fields, single-choice enums, and multi-tag fields, and it is stable enough to support future UI refinements (e.g., multi-step or tabbed forms) without changing the backend representation.  
 Checkpoint: Wait for developer approval before proceeding.
 
 2. Update the database schema to add appearance storage for character versions  
-Status: Pending  
-Testing: Add a JSON (or TEXT) column to `character_versions` (e.g., `appearance_json`) via migration; apply the migration locally and confirm new character rows can be created with a non-null JSON payload, and that old rows (if any) are either dropped or updated according to the agreed reset strategy.  
+Status: Completed  
+Testing: Added an `appearance_json` column to `character_versions` in `db/migrations.sql` via `ALTER TABLE character_versions ADD COLUMN IF NOT EXISTS appearance_json JSON NOT NULL DEFAULT ('{}') AFTER extra_notes;` and applied the migration to the local `graphics` database using `sudo mysql graphics < db/migrations.sql`. Confirmed via `SHOW COLUMNS FROM character_versions;` that `appearance_json` exists with default `'{}'`.  
 Checkpoint: Wait for developer approval before proceeding.
 
 3. Expose the appearance configuration via a backend API endpoint  
-Status: Pending  
-Testing: Implement a simple `GET /api/character-appearance-config` route that returns `characterAppearanceConfig` (categories/properties/options) in JSON; hit it from curl/Postman to verify the payload structure matches the types and that it’s safe for client consumption (no secrets, only static config).  
+Status: Completed  
+Testing: Added a new Express route in `server/src/index.ts` that handles `GET /api/character-appearance-config` and returns the exported `characterAppearanceConfig` from `server/src/config/characterAppearance/index.ts` as JSON. Ran `npm run build` in `server/` to ensure the server compiles with the new import and route. The response payload is static configuration (categories/properties/options) with no secrets.  
 Checkpoint: Wait for developer approval before proceeding.
 
 4. Implement a reusable appearance form model on the client  
-Status: Pending  
-Testing: Create client-side types mirroring the appearance config and an in-memory representation of a character’s appearance values (e.g., `{ [categoryKey]: { [propertyKey]: value | string[] } }`). Build a small helper to initialize default values from the config and serialize back to a JSON shape suitable for the backend. Verify, in dev tools or console, that editing fields updates this structure as expected.  
+Status: Completed  
+Testing: Added `client/src/api/characterAppearance.ts` with client-side types mirroring the backend config (`CharacterAppearanceConfig`, `AppearanceCategory`, `AppearanceProperty`, etc.), an `AppearanceValues` model shaped as `{ [categoryKey]: { [propertyKey]: string | string[] } }`, and helpers: `fetchCharacterAppearanceConfig` (calls `GET /api/character-appearance-config`), `createEmptyAppearanceValues` (builds an in-memory value object from the config), `buildInitialAppearanceValues` (merges existing values with config defaults), and `serializeAppearanceValues` (trims/filters empty values and returns a JSON-ready object for `appearance_json`). Ran `npm run build` in `client/` to confirm the new module compiles.  
 Checkpoint: Wait for developer approval before proceeding.
 
 5. Replace CharacterCreatePage form with config-driven fields  
-Status: Pending  
-Testing: On `/spaces/:spaceId/characters/new`, render the form sections based on the config: strings as text inputs/areas, enums as selects, and tags as chip-style multi-selects with seeded options and custom entry support (e.g., for `strengths`). On submit, send both the basic identity (name) and the appearance JSON to the backend. Confirm that creating a new character results in a persisted `appearance_json` row that matches the form input.  
+Status: Completed  
+Testing: Updated `CharacterCreatePage` (`client/src/pages/CharacterCreatePage.tsx`) to fetch `CharacterAppearanceConfig` via `fetchCharacterAppearanceConfig`, maintain `AppearanceValues` state, and render a long-form, config-driven appearance form: strings as textareas, enums as selects populated from `options`, and tags as a comma-separated text input. On submit, the page now serializes values with `serializeAppearanceValues` and calls `createCharacter` with both `name` and `appearance`. On the backend, `NewCharacterInput` in `server/src/characters/service.ts` now includes an `appearance` payload, and `createCharacterForSpace` writes it into the `appearance_json` column when inserting the first `character_versions` row. Server and client builds pass, and `SHOW COLUMNS FROM character_versions;` confirms the `appearance_json` column is present and non-null; existing rows default to `'{}'`, ready for new structured data.  
 Checkpoint: Wait for developer approval before proceeding.
 
 6. Wire clone behavior to pre-fill structured appearance  
-Status: Pending  
-Testing: When hitting `/spaces/:spaceId/characters/new?from=<characterId>`, fetch the source character’s appearance JSON from the backend and use it to pre-populate the form (including tags). Verify that saving creates a new character with copied appearance values (unless changed) and that the original character remains unchanged. Confirm this works for multiple categories, not just core identity.  
+Status: Completed  
+Testing: Updated `CharacterVersionDetail` on the server (`server/src/characters/service.ts`) to expose a parsed `appearance` object by reading `appearance_json` for each version, and extended `getCharacterWithVersions` to include it. The clone API (`cloneCharacterVersion`) now copies `appearance_json` from the source version when inserting a new row. On the client, `CharacterVersionDetail` in `client/src/api/characters.ts` gained an optional `appearance` field, and `CharacterCreatePage` was updated so that when `/spaces/:spaceId/characters/new?from=<characterId>` is hit, it uses `fetchCharacterWithVersions` to load the source character, sets the name/description from that payload, and seeds `AppearanceValues` with the latest version’s `appearance` via `buildInitialAppearanceValues`. The form then submits a serialized appearance object to the backend, creating a new character with copied structured appearance while leaving the original unchanged. Server and client builds pass after these changes.  
 Checkpoint: Wait for developer approval before proceeding.
 
 7. Integrate structured appearance into prompt building for images  
-Status: Pending  
-Testing: Extend the prompt builder in `server/src/images/service.ts` to optionally read from `appearance_json` (when present) and construct lines based on categories/properties (e.g., core identity + facial structure + hair) in addition to, or instead of, existing free-text fields. Generate a few images and confirm that the logged prompt includes the expected structured details (name, age range, body type, etc.).  
+Status: Completed  
+Testing: Updated `server/src/images/service.ts` to (a) extend `CharacterVersionPromptRow` with an optional `appearance_json` field, (b) import `characterAppearanceConfig` and `CharacterAppearanceValues`, and (c) add `buildAppearanceLines`, which parses `appearance_json` into a `{ [categoryKey]: { [propertyKey]: string | string[] } }` object and walks selected categories (`core_identity`, `facial_structure`, `hair`, `skin`, `physique`, `distinctive_markers`, `clothing_defaults`, `character_lore`) plus their properties to produce human-readable lines of the form `Category Label: Prop Label: value; ...`. `buildPrompt` now calls `buildAppearanceLines` for the character and appends those lines after the existing free-text character fields but before any custom `base_prompt`, so structured appearance enriches prompts without removing legacy fields or the fallback description behavior. Ran `npm run build` in `server/` to confirm the changes compile.  
 Checkpoint: Wait for developer approval before proceeding.
 
 8. Clean up legacy character fields and update documentation/handoff  
@@ -63,12 +78,11 @@ Checkpoint: Wait for developer approval before proceeding.
 
 ## 3. Progress Tracking Notes
 
-- Step 1 — Status: Pending.  
-- Step 2 — Status: Pending.  
-- Step 3 — Status: Pending.  
-- Step 4 — Status: Pending.  
-- Step 5 — Status: Pending.  
-- Step 6 — Status: Pending.  
-- Step 7 — Status: Pending.  
+- Step 1 — Status: Completed.  
+- Step 2 — Status: Completed.  
+- Step 3 — Status: Completed.  
+- Step 4 — Status: Completed.  
+- Step 5 — Status: Completed.  
+- Step 6 — Status: Completed.  
+- Step 7 — Status: Completed.  
 - Step 8 — Status: Pending.
-

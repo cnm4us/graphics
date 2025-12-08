@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS character_versions (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Structured appearance data for character versions, stored as JSON.
+ALTER TABLE character_versions
+  ADD COLUMN IF NOT EXISTS appearance_json JSON NOT NULL DEFAULT ('{}')
+  AFTER extra_notes;
+
 -- Styles live inside spaces and serve as reusable render instructions.
 CREATE TABLE IF NOT EXISTS styles (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

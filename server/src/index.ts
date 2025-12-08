@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 
 import { env, logEnvSummary } from './config/env.js';
+import { characterAppearanceConfig } from './config/characterAppearance/index.js';
 import { logGeminiStatus } from './ai/googleClient.js';
 import { logS3Status } from './storage/s3Client.js';
 import { initDb } from './db/index.js';
@@ -37,6 +38,10 @@ app.get('/health', (_req, res) => {
     service: 'graphics-backend',
     nodeVersion: process.version,
   });
+});
+
+app.get('/api/character-appearance-config', (_req, res) => {
+  res.status(200).json(characterAppearanceConfig);
 });
 
 app.use('/api/auth', authRouter);
