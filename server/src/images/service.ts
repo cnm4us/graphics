@@ -166,31 +166,39 @@ const buildPrompt = (
   style: StyleVersionPromptRow | null,
   scene: SceneVersionPromptRow | null,
 ): { prompt: string; negativePrompt: string | null } => {
-  const lines: string[] = [];
+  const characterLines: string[] = [];
+  const styleLines: string[] = [];
+  const sceneLines: string[] = [];
   const negative: string[] = [];
 
   if (character) {
     if (character.identity_summary) {
-      lines.push(`Character identity: ${character.identity_summary}`);
+      characterLines.push(`Character identity: ${character.identity_summary}`);
     }
     if (character.physical_description) {
-      lines.push(`Physical description: ${character.physical_description}`);
+      characterLines.push(
+        `Physical description: ${character.physical_description}`,
+      );
     }
     if (character.wardrobe_description) {
-      lines.push(`Wardrobe: ${character.wardrobe_description}`);
+      characterLines.push(`Wardrobe: ${character.wardrobe_description}`);
     }
     if (character.personality_mannerisms) {
-      lines.push(`Personality and mannerisms: ${character.personality_mannerisms}`);
+      characterLines.push(
+        `Personality and mannerisms: ${character.personality_mannerisms}`,
+      );
     }
     if (character.extra_notes) {
-      lines.push(`Additional character notes: ${character.extra_notes}`);
+      characterLines.push(
+        `Additional character notes: ${character.extra_notes}`,
+      );
     }
     const appearanceLines = buildAppearanceLines(character.appearance_json);
     if (appearanceLines.length > 0) {
-      lines.push(...appearanceLines);
+      characterLines.push(...appearanceLines);
     }
     if (character.base_prompt) {
-      lines.push(character.base_prompt);
+      characterLines.push(character.base_prompt);
     }
     if (character.negative_prompt) {
       negative.push(character.negative_prompt);
@@ -205,28 +213,28 @@ const buildPrompt = (
           ? style.style_description.trim()
           : '';
       if (desc) {
-        lines.push(`Style: ${base} — ${desc}`);
+        styleLines.push(`Style: ${base} — ${desc}`);
       } else {
-        lines.push(`Style: ${base}`);
+        styleLines.push(`Style: ${base}`);
       }
     }
     if (style.art_style) {
-      lines.push(`Art style: ${style.art_style}`);
+      styleLines.push(`Art style: ${style.art_style}`);
     }
     if (style.color_palette) {
-      lines.push(`Color palette: ${style.color_palette}`);
+      styleLines.push(`Color palette: ${style.color_palette}`);
     }
     if (style.lighting) {
-      lines.push(`Lighting: ${style.lighting}`);
+      styleLines.push(`Lighting: ${style.lighting}`);
     }
     if (style.camera) {
-      lines.push(`Camera: ${style.camera}`);
+      styleLines.push(`Camera: ${style.camera}`);
     }
     if (style.render_technique) {
-      lines.push(`Rendering: ${style.render_technique}`);
+      styleLines.push(`Rendering: ${style.render_technique}`);
     }
     if (style.base_prompt) {
-      lines.push(style.base_prompt);
+      styleLines.push(style.base_prompt);
     }
     if (style.negative_prompt) {
       negative.push(style.negative_prompt);
@@ -235,26 +243,52 @@ const buildPrompt = (
 
   if (scene) {
     if (scene.environment_description) {
-      lines.push(`Scene environment: ${scene.environment_description}`);
+      sceneLines.push(`Scene environment: ${scene.environment_description}`);
     }
     if (scene.layout_description) {
-      lines.push(`Scene layout: ${scene.layout_description}`);
+      sceneLines.push(`Scene layout: ${scene.layout_description}`);
     }
     if (scene.time_of_day) {
-      lines.push(`Time of day: ${scene.time_of_day}`);
+      sceneLines.push(`Time of day: ${scene.time_of_day}`);
     }
     if (scene.mood) {
-      lines.push(`Scene mood: ${scene.mood}`);
+      sceneLines.push(`Scene mood: ${scene.mood}`);
     }
     if (scene.base_prompt) {
-      lines.push(scene.base_prompt);
+      sceneLines.push(scene.base_prompt);
     }
     if (scene.negative_prompt) {
       negative.push(scene.negative_prompt);
     }
   }
 
-  const prompt = lines.join('\n').trim();
+  const sections: string[] = ['# Image Specification'];
+
+  if (characterLines.length > 0) {
+    sections.push('');
+    sections.push('## Character');
+    sections.push(
+      ...characterLines.map((line) => (line.startsWith('- ') ? line : `- ${line}`)),
+    );
+  }
+
+  if (styleLines.length > 0) {
+    sections.push('');
+    sections.push('## Art Style');
+    sections.push(
+      ...styleLines.map((line) => (line.startsWith('- ') ? line : `- ${line}`)),
+    );
+  }
+
+  if (sceneLines.length > 0) {
+    sections.push('');
+    sections.push('## Scene');
+    sections.push(
+      ...sceneLines.map((line) => (line.startsWith('- ') ? line : `- ${line}`)),
+    );
+  }
+
+  const prompt = sections.join('\n').trim();
   const negativePrompt = negative.length > 0 ? negative.join('\n') : null;
 
   return { prompt, negativePrompt };
