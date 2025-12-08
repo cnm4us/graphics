@@ -12,6 +12,7 @@ import { SpaceImagesPage } from './pages/SpaceImagesPage.tsx';
 import { SpaceScenesPage } from './pages/SpaceScenesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 import { LeftDrawer } from './layout/LeftDrawer.tsx';
+import { CharacterCreatePage } from './pages/CharacterCreatePage.tsx';
 
 function RootRoute(): JSX.Element {
   const { user, loading } = useAuth();
@@ -89,6 +90,10 @@ export default function App(): JSX.Element {
           <Route
             path="/spaces/:spaceId/characters"
             element={<CharactersPage />}
+          />
+          <Route
+            path="/spaces/:spaceId/characters/new"
+            element={<CharacterCreatePage />}
           />
           <Route path="/spaces/:spaceId/styles" element={<StylesPage />} />
           <Route path="/spaces/:spaceId/scenes" element={<SpaceScenesPage />} />

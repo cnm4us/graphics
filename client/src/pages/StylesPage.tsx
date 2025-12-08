@@ -134,47 +134,54 @@ export function StylesPage(): JSX.Element {
     );
   }
 
+  const activeSpace =
+    spaceIdFromParams != null
+      ? spaces.find((s) => s.id === spaceIdFromParams) ?? null
+      : null;
+
   return (
     <section>
-      <h2>Styles</h2>
-      {spaceIdFromParams ? (
-        <p>Manage styles for this space.</p>
+      {spaceIdFromParams && activeSpace ? (
+        <h2>{activeSpace.name}</h2>
       ) : (
-        <p>Select a space and manage its styles.</p>
-      )}
+        <>
+          <h2>Styles</h2>
+          <p>Select a space and manage its styles.</p>
 
-      <section style={{ marginTop: 16 }}>
-        <h3>Your spaces</h3>
-        {spacesLoading && <p>Loading spaces…</p>}
-        {spacesError && <p style={{ color: 'red' }}>{spacesError}</p>}
-        {!spacesLoading && spaces.length === 0 && (
-          <p>You do not have any spaces yet.</p>
-        )}
-        <ul>
-          {spaces.map((space) => (
-            <li key={space.id} style={{ marginBottom: 8 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (spaceIdFromParams) {
-                    navigate(`/spaces/${space.id}/styles`);
-                  } else {
-                    setSelectedSpaceId(space.id);
-                  }
-                }}
-                style={{
-                  fontWeight:
-                    selectedSpaceId === space.id ? 'bold' : 'normal',
-                  marginRight: 8,
-                }}
-              >
-                {space.name}
-              </button>
-              {space.description && <span> — {space.description}</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
+          <section style={{ marginTop: 16 }}>
+            <h3>Your spaces</h3>
+            {spacesLoading && <p>Loading spaces…</p>}
+            {spacesError && <p style={{ color: 'red' }}>{spacesError}</p>}
+            {!spacesLoading && spaces.length === 0 && (
+              <p>You do not have any spaces yet.</p>
+            )}
+            <ul>
+              {spaces.map((space) => (
+                <li key={space.id} style={{ marginBottom: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (spaceIdFromParams) {
+                        navigate(`/spaces/${space.id}/styles`);
+                      } else {
+                        setSelectedSpaceId(space.id);
+                      }
+                    }}
+                    style={{
+                      fontWeight:
+                        selectedSpaceId === space.id ? 'bold' : 'normal',
+                      marginRight: 8,
+                    }}
+                  >
+                    {space.name}
+                  </button>
+                  {space.description && <span> — {space.description}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
 
       {selectedSpaceId && (
         <section style={{ marginTop: 24 }}>

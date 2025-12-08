@@ -311,6 +311,22 @@ export const generateImageForUser = async (
       : normalizeSeed(Math.floor(Math.random() * 0x7fffffff))!;
 
   try {
+    // Log the final request shape going to Google's image model (without secrets).
+    // eslint-disable-next-line no-console
+    console.log('[images] Calling Google image model', {
+      model: env.imageModel,
+      userId: input.userId,
+      spaceId: input.spaceId,
+      characterVersionId: input.characterVersionId,
+      styleVersionId: input.styleVersionId,
+      sceneVersionId: input.sceneVersionId ?? null,
+      seed: effectiveSeed,
+      aspectRatio: input.aspectRatio ?? null,
+      resolution: input.resolution ?? null,
+      prompt,
+      negativePrompt,
+    });
+
     const stream: any = await client.models.generateContentStream({
       model: env.imageModel,
       contents: [

@@ -18,6 +18,7 @@ export const generateImage = async (params: {
   characterVersionId: number;
   styleVersionId: number;
   seed?: number;
+  aspectRatio?: string;
 }): Promise<GeneratedImage> => {
   const res = await fetch('/api/images/generate', {
     method: 'POST',
@@ -67,4 +68,3 @@ export const deleteImage = async (
     throw new Error('IMAGE_DELETE_FAILED');
   }
 };
-

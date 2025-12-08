@@ -135,96 +135,169 @@ export function CharactersPage(): JSX.Element {
     );
   }
 
+  const activeSpace =
+    spaceIdFromParams != null
+      ? spaces.find((s) => s.id === spaceIdFromParams) ?? null
+      : null;
+
   return (
     <section>
-      <h2>Characters</h2>
-      {spaceIdFromParams ? (
-        <p>Manage characters for this space.</p>
-      ) : (
-        <p>Select a space and manage its characters.</p>
-      )}
-
-      <section style={{ marginTop: 16 }}>
-        <h3>Your spaces</h3>
-        {spacesLoading && <p>Loading spaces…</p>}
-        {spacesError && <p style={{ color: 'red' }}>{spacesError}</p>}
-        {!spacesLoading && spaces.length === 0 && (
-          <p>You do not have any spaces yet.</p>
-        )}
-        <ul>
-          {spaces.map((space) => (
-            <li key={space.id} style={{ marginBottom: 8 }}>
+      {spaceIdFromParams && activeSpace ? (
+        <>
+          <h2>{activeSpace.name}</h2>
+          <section style={{ marginTop: 24 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Characters</h3>
               <button
                 type="button"
-                onClick={() => {
-                  if (spaceIdFromParams) {
-                    navigate(`/spaces/${space.id}/characters`);
-                  } else {
-                    setSelectedSpaceId(space.id);
-                  }
-                }}
-                style={{
-                  fontWeight:
-                    selectedSpaceId === space.id ? 'bold' : 'normal',
-                  marginRight: 8,
-                }}
+                onClick={() =>
+                  navigate(`/spaces/${spaceIdFromParams}/characters/new`)
+                }
               >
-                {space.name}
+                Create character
               </button>
-              {space.description && <span> — {space.description}</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {selectedSpaceId && (
-        <section style={{ marginTop: 24 }}>
-          <h3>Characters in selected space</h3>
-          {metaError && <p style={{ color: 'red' }}>{metaError}</p>}
-
-          <form onSubmit={handleCreateCharacter} style={{ maxWidth: 320 }}>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label htmlFor="characterName">Name</label>
-              <input
-                id="characterName"
-                type="text"
-                value={newCharacterName}
-                onChange={(e) => setNewCharacterName(e.target.value)}
-                required
-                style={{ display: 'block', width: '100%' }}
-              />
             </div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label htmlFor="characterDescription">Description</label>
-              <textarea
-                id="characterDescription"
-                value={newCharacterDescription}
-                onChange={(e) => setNewCharacterDescription(e.target.value)}
-                rows={3}
-                style={{ display: 'block', width: '100%' }}
-              />
-            </div>
-            <button type="submit">Create character</button>
-          </form>
+            {metaError && <p style={{ color: 'red' }}>{metaError}</p>}
 
-          <ul style={{ marginTop: 16 }}>
-            {characters.map((c) => (
-              <li key={c.id} style={{ marginBottom: 8 }}>
-                <strong>{c.name}</strong>
-                {c.description && <span> — {c.description}</span>}
-                {c.latestVersion && (
-                  <span>
-                    {' '}
-                    (v{c.latestVersion.versionNumber}
-                    {c.latestVersion.label ? `: ${c.latestVersion.label}` : ''}
-                    )
-                  </span>
-                )}
-              </li>
-            ))}
-            {characters.length === 0 && <li>No characters yet.</li>}
-          </ul>
-        </section>
+            <ul style={{ marginTop: 16 }}>
+              {characters.map((c) => (
+                <li
+                  key={c.id}
+                  style={{
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}`,
+                      )
+                    }
+                  >
+                    Clone
+                  </button>
+                  <div>
+                    <strong>{c.name}</strong>
+                    {c.description && <span> — {c.description}</span>}
+                    {c.latestVersion && (
+                      <span>
+                        {' '}
+                        (v{c.latestVersion.versionNumber}
+                        {c.latestVersion.label
+                          ? `: ${c.latestVersion.label}`
+                          : ''}
+                        )
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+              {characters.length === 0 && <li>No characters yet.</li>}
+            </ul>
+          </section>
+        </>
+      ) : (
+        <>
+          <h2>Characters</h2>
+          <p>Select a space and manage its characters.</p>
+
+          <section style={{ marginTop: 16 }}>
+            <h3>Your spaces</h3>
+            {spacesLoading && <p>Loading spaces…</p>}
+            {spacesError && <p style={{ color: 'red' }}>{spacesError}</p>}
+            {!spacesLoading && spaces.length === 0 && (
+              <p>You do not have any spaces yet.</p>
+            )}
+            <ul>
+              {spaces.map((space) => (
+                <li key={space.id} style={{ marginBottom: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (spaceIdFromParams) {
+                        navigate(`/spaces/${space.id}/characters`);
+                      } else {
+                        setSelectedSpaceId(space.id);
+                      }
+                    }}
+                    style={{
+                      fontWeight:
+                        selectedSpaceId === space.id ? 'bold' : 'normal',
+                      marginRight: 8,
+                    }}
+                  >
+                    {space.name}
+                  </button>
+                  {space.description && <span> — {space.description}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {selectedSpaceId && (
+            <section style={{ marginTop: 24 }}>
+              <h3>Characters in selected space</h3>
+              {metaError && <p style={{ color: 'red' }}>{metaError}</p>}
+
+              <form onSubmit={handleCreateCharacter} style={{ maxWidth: 320 }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label htmlFor="characterName">Name</label>
+                  <input
+                    id="characterName"
+                    type="text"
+                    value={newCharacterName}
+                    onChange={(e) => setNewCharacterName(e.target.value)}
+                    required
+                    style={{ display: 'block', width: '100%' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label htmlFor="characterDescription">Description</label>
+                  <textarea
+                    id="characterDescription"
+                    value={newCharacterDescription}
+                    onChange={(e) =>
+                      setNewCharacterDescription(e.target.value)
+                    }
+                    rows={3}
+                    style={{ display: 'block', width: '100%' }}
+                  />
+                </div>
+                <button type="submit">Create character</button>
+              </form>
+
+              <ul style={{ marginTop: 16 }}>
+                {characters.map((c) => (
+                  <li key={c.id} style={{ marginBottom: 8 }}>
+                    <strong>{c.name}</strong>
+                    {c.description && <span> — {c.description}</span>}
+                    {c.latestVersion && (
+                      <span>
+                        {' '}
+                        (v{c.latestVersion.versionNumber}
+                        {c.latestVersion.label
+                          ? `: ${c.latestVersion.label}`
+                          : ''}
+                        )
+                      </span>
+                    )}
+                  </li>
+                ))}
+                {characters.length === 0 && <li>No characters yet.</li>}
+              </ul>
+            </section>
+          )}
+        </>
       )}
     </section>
   );

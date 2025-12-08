@@ -35,6 +35,7 @@ export function SpaceGeneratePage(): JSX.Element {
   const [selectedStyleVersionId, setSelectedStyleVersionId] =
     useState<number | null>(null);
   const [seedInput, setSeedInput] = useState('');
+  const [aspectRatio, setAspectRatio] = useState('1:1');
   const [lastGenerated, setLastGenerated] = useState<GeneratedImage | null>(
     null,
   );
@@ -141,6 +142,7 @@ export function SpaceGeneratePage(): JSX.Element {
         characterVersionId: selectedCharacterVersionId,
         styleVersionId: selectedStyleVersionId,
         seed,
+        aspectRatio,
       });
       setLastGenerated(image);
     } catch (error: any) {
@@ -258,6 +260,22 @@ export function SpaceGeneratePage(): JSX.Element {
                 onChange={(e) => setSeedInput(e.target.value)}
                 style={{ display: 'block', width: '100%' }}
               />
+            </div>
+
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label htmlFor="aspectRatioSelect">Aspect ratio</label>
+              <select
+                id="aspectRatioSelect"
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+                style={{ display: 'block', width: '100%' }}
+              >
+                <option value="1:1">1:1</option>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="4:3">4:3</option>
+                <option value="3:4">3:4</option>
+              </select>
             </div>
 
             <button type="submit">Generate image</button>
