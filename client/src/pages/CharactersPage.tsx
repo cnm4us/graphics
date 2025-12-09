@@ -150,12 +150,21 @@ export function CharactersPage(): JSX.Element {
       ? spaces.find((s) => s.id === spaceIdFromParams) ?? null
       : null;
 
-  const characterHasImage = (character: CharacterSummary): boolean => {
+  const getLatestImageForCharacter = (
+    character: CharacterSummary,
+  ): GeneratedImage | null => {
     const latestVersionId = character.latestVersion?.id;
-    if (!latestVersionId) return false;
-    return imagesForSpace.some(
-      (img) => img.characterVersionId === latestVersionId,
+    if (!latestVersionId) return null;
+
+    const img = imagesForSpace.find(
+      (image) => image.characterVersionId === latestVersionId,
     );
+
+    return img ?? null;
+  };
+
+  const characterHasImage = (character: CharacterSummary): boolean => {
+    return getLatestImageForCharacter(character) != null;
   };
 
   return (
@@ -183,55 +192,103 @@ export function CharactersPage(): JSX.Element {
             </div>
             {metaError && <p style={{ color: 'red' }}>{metaError}</p>}
 
-            <ul style={{ marginTop: 16 }}>
-              {characters.map((c) => (
-                <li
-                  key={c.id}
-                  style={{
-                    marginBottom: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  {!characterHasImage(c) && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}&mode=edit`,
-                        )
-                      }
-                    >
-                      Edit
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}`,
-                      )
-                    }
+            <ul
+              style={{
+                marginTop: 16,
+                padding: 0,
+                listStyle: 'none',
+                maxWidth: 720,
+              }}
+            >
+              {characters.map((c) => {
+                const latestImage = getLatestImageForCharacter(c);
+                const hasImage = latestImage != null;
+                const imageUrl =
+                  latestImage?.cloudfrontUrl ?? latestImage?.s3Url ?? null;
+
+                return (
+                  <li
+                    key={c.id}
+                    style={{
+                      marginBottom: 24,
+                      paddingBottom: 16,
+                      borderBottom: '1px solid #ddd',
+                    }}
                   >
-                    Clone
-                  </button>
-                  <div>
-                    <strong>{c.name}</strong>
-                    {c.description && <span> — {c.description}</span>}
-                    {c.latestVersion && (
-                      <span>
-                        {' '}
-                        (v{c.latestVersion.versionNumber}
-                        {c.latestVersion.label
-                          ? `: ${c.latestVersion.label}`
-                          : ''}
-                        )
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div>
+                        <strong>{c.name}</strong>
+                        {c.description && <span> — {c.description}</span>}
+                        {c.latestVersion && (
+                          <span>
+                            {' '}
+                            (v{c.latestVersion.versionNumber}
+                            {c.latestVersion.label
+                              ? `: ${c.latestVersion.label}`
+                              : ''}
+                            )
+                          </span>
+                        )}
+                      </div>
+                      {hasImage && imageUrl && (
+                        <div>
+                          <img
+                            src={imageUrl}
+                            alt={latestImage.prompt.slice(0, 80)}
+                            style={{
+                              width: '100%',
+                              height: 'auto',
+                              display: 'block',
+                              borderRadius: 4,
+                              border: '1px solid #ccc',
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/spaces/${spaceIdFromParams}/characters/${c.id}`,
+                            )
+                          }
+                        >
+                          View
+                        </button>
+                        {!hasImage && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(
+                                `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}&mode=edit`,
+                              )
+                            }
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/spaces/${spaceIdFromParams}/characters/new?from=${c.id}`,
+                            )
+                          }
+                        >
+                          Clone
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
               {characters.length === 0 && <li>No characters yet.</li>}
             </ul>
           </section>

@@ -8,6 +8,8 @@ import {
   type NewStyleInput,
   getStyleWithVersions,
   cloneStyleVersion,
+  type UpdateStyleInput,
+  updateStyleForSpace,
 } from './service.js';
 
 type AuthedRequest = Request & { user?: PublicUser; authPayload?: AuthPayload };
@@ -99,6 +101,65 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
     res.status(201).json({ style });
   } catch (error) {
     res.status(500).json({ error: 'STYLE_CREATE_FAILED' });
+  }
+});
+
+router.patch('/:styleId', async (req: AuthedRequest, res: Response) => {
+  const user = req.user;
+  const spaceId = Number(req.params.spaceId);
+  const styleId = Number(req.params.styleId);
+
+  if (!user) {
+    res.status(401).json({ error: 'UNAUTHENTICATED' });
+    return;
+  }
+  if (!Number.isFinite(spaceId) || spaceId <= 0) {
+    res.status(400).json({ error: 'INVALID_SPACE_ID' });
+    return;
+  }
+  if (!Number.isFinite(styleId) || styleId <= 0) {
+    res.status(400).json({ error: 'INVALID_STYLE_ID' });
+    return;
+  }
+
+  try {
+    await assertSpaceOwnedByUserForStyles(spaceId, user.id);
+  } catch {
+    res.status(404).json({ error: 'SPACE_NOT_FOUND' });
+    return;
+  }
+
+  const body = req.body as {
+    name?: string;
+    description?: string;
+    styleDefinition?: unknown;
+  };
+
+  const input: UpdateStyleInput = {
+    name: body.name,
+    description: body.description,
+    styleDefinition:
+      body.styleDefinition && typeof body.styleDefinition === 'object'
+        ? (body.styleDefinition as UpdateStyleInput['styleDefinition'])
+        : undefined,
+  };
+
+  try {
+    const style = await updateStyleForSpace(spaceId, styleId, input);
+    if (!style) {
+      res.status(404).json({ error: 'STYLE_NOT_FOUND' });
+      return;
+    }
+    res.status(200).json({ style });
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+    if (message === 'STYLE_HAS_GENERATED_IMAGES') {
+      res.status(400).json({ error: 'STYLE_HAS_GENERATED_IMAGES' });
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.error('[styles] Update style error:', error);
+    res.status(500).json({ error: 'STYLE_UPDATE_FAILED' });
   }
 });
 

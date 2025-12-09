@@ -58,6 +58,7 @@ export type StyleVersionDetail = {
   lighting: string | null;
   camera: string | null;
   renderTechnique: string | null;
+  styleDefinition?: Record<string, Record<string, string | string[]>> | null;
   negativePrompt: string | null;
   baseSeed: number | null;
   clonedFromVersionId: number | null;
@@ -81,6 +82,12 @@ export type CloneStyleVersionInput = {
   renderTechnique?: string | null;
   negativePrompt?: string | null;
   baseSeed?: number | null;
+};
+
+export type UpdateStyleInput = {
+  name?: string;
+  description?: string;
+  styleDefinition?: Record<string, Record<string, string | string[]>>;
 };
 
 export const assertSpaceOwnedByUserForStyles = async (
@@ -142,6 +149,88 @@ export const listStylesForSpace = async (
         : undefined,
     };
   });
+};
+
+export const updateStyleForSpace = async (
+  spaceId: number,
+  styleId: number,
+  input: UpdateStyleInput,
+): Promise<StyleSummary | null> => {
+  const db = getDbPool();
+
+  const [styleRows] = await db.query(
+    'SELECT id, space_id, name, description FROM styles WHERE id = ? AND space_id = ? LIMIT 1',
+    [styleId, spaceId],
+  );
+  const styles = styleRows as StyleRecord[];
+  const existing = styles[0];
+  if (!existing) {
+    return null;
+  }
+
+  const [usageRows] = await db.query(
+    `SELECT i.id
+     FROM images i
+       JOIN style_versions sv ON i.style_version_id = sv.id
+     WHERE sv.style_id = ?
+     LIMIT 1`,
+    [styleId],
+  );
+  const usedList = usageRows as Array<{ id: number }>;
+  if (usedList.length > 0) {
+    const error = new Error('STYLE_HAS_GENERATED_IMAGES');
+    throw error;
+  }
+
+  const trimmedName =
+    input.name !== undefined && input.name.trim().length > 0
+      ? input.name.trim()
+      : existing.name;
+  const trimmedDescription =
+    input.description !== undefined
+      ? input.description.trim() || null
+      : existing.description;
+
+  await db.query(
+    'UPDATE styles SET name = ?, description = ? WHERE id = ?',
+    [trimmedName, trimmedDescription, styleId],
+  );
+
+  if (input.styleDefinition) {
+    const [latestVersionRows] = await db.query(
+      'SELECT * FROM style_versions WHERE style_id = ? ORDER BY version_number DESC LIMIT 1',
+      [styleId],
+    );
+    const latestList = latestVersionRows as StyleVersionRecord[];
+    const latest = latestList[0];
+    if (latest) {
+      const styleDefinitionJson = JSON.stringify(input.styleDefinition);
+      await db.query(
+        'UPDATE style_versions SET style_definition_json = ? WHERE id = ?',
+        [styleDefinitionJson, latest.id],
+      );
+    }
+  }
+
+  const [latestVersionRows] = await db.query(
+    'SELECT * FROM style_versions WHERE style_id = ? ORDER BY version_number DESC LIMIT 1',
+    [styleId],
+  );
+  const latestList = latestVersionRows as StyleVersionRecord[];
+  const latest = latestList[0];
+
+  return {
+    id: existing.id,
+    name: trimmedName,
+    description: trimmedDescription,
+    latestVersion: latest
+      ? {
+          id: latest.id,
+          versionNumber: latest.version_number,
+          label: latest.label,
+        }
+      : undefined,
+  };
 };
 
 export const createStyleForSpace = async (
@@ -222,20 +311,41 @@ export const getStyleWithVersions = async (
   );
   const versions = versionRows as StyleVersionRecord[];
 
-  const mapped: StyleVersionDetail[] = versions.map((v) => ({
-    id: v.id,
-    versionNumber: v.version_number,
-    label: v.label,
-    artStyle: v.art_style,
-    colorPalette: v.color_palette,
-    lighting: v.lighting,
-    camera: v.camera,
-    renderTechnique: v.render_technique,
-    negativePrompt: v.negative_prompt,
-    baseSeed: v.base_seed,
-    clonedFromVersionId: v.cloned_from_version_id,
-    createdAt: v.created_at.toISOString(),
-  }));
+  const mapped: StyleVersionDetail[] = versions.map((v) => {
+    let styleDefinition: Record<string, Record<string, string | string[]>> | null =
+      null;
+    if (v.style_definition_json) {
+      try {
+        const parsed = JSON.parse(
+          typeof v.style_definition_json === 'string'
+            ? v.style_definition_json
+            : String(v.style_definition_json),
+        );
+        if (parsed && typeof parsed === 'object') {
+          styleDefinition =
+            parsed as Record<string, Record<string, string | string[]>>;
+        }
+      } catch {
+        styleDefinition = null;
+      }
+    }
+
+    return {
+      id: v.id,
+      versionNumber: v.version_number,
+      label: v.label,
+      artStyle: v.art_style,
+      colorPalette: v.color_palette,
+      lighting: v.lighting,
+      camera: v.camera,
+      renderTechnique: v.render_technique,
+      styleDefinition,
+      negativePrompt: v.negative_prompt,
+      baseSeed: v.base_seed,
+      clonedFromVersionId: v.cloned_from_version_id,
+      createdAt: v.created_at.toISOString(),
+    };
+  });
 
   return {
     id: style.id,

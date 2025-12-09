@@ -13,6 +13,9 @@ import { SpaceScenesPage } from './pages/SpaceScenesPage.tsx';
 import { useAuth } from './auth/AuthContext.tsx';
 import { LeftDrawer } from './layout/LeftDrawer.tsx';
 import { CharacterCreatePage } from './pages/CharacterCreatePage.tsx';
+import { CharacterViewPage } from './pages/CharacterViewPage.tsx';
+import { StyleCreatePage } from './pages/StyleCreatePage.tsx';
+import { StyleViewPage } from './pages/StyleViewPage.tsx';
 
 function RootRoute(): JSX.Element {
   const { user, loading } = useAuth();
@@ -92,10 +95,22 @@ export default function App(): JSX.Element {
             element={<CharactersPage />}
           />
           <Route
+            path="/spaces/:spaceId/characters/:characterId"
+            element={<CharacterViewPage />}
+          />
+          <Route
             path="/spaces/:spaceId/characters/new"
             element={<CharacterCreatePage />}
           />
           <Route path="/spaces/:spaceId/styles" element={<StylesPage />} />
+          <Route
+            path="/spaces/:spaceId/styles/new"
+            element={<StyleCreatePage />}
+          />
+          <Route
+            path="/spaces/:spaceId/styles/:styleId"
+            element={<StyleViewPage />}
+          />
           <Route path="/spaces/:spaceId/scenes" element={<SpaceScenesPage />} />
           <Route
             path="/spaces/:spaceId/generate"

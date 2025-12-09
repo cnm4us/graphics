@@ -20,6 +20,7 @@ export type StyleVersionDetail = {
   lighting: string | null;
   camera: string | null;
   renderTechnique: string | null;
+  styleDefinition?: StyleValues | null;
   negativePrompt: string | null;
   baseSeed: number | null;
   clonedFromVersionId: number | null;
@@ -35,6 +36,12 @@ export type StyleWithVersions = {
 
 export type NewStylePayload = {
   name: string;
+  description?: string;
+  styleDefinition?: StyleValues;
+};
+
+export type UpdateStylePayload = {
+  name?: string;
   description?: string;
   styleDefinition?: StyleValues;
 };
@@ -83,6 +90,32 @@ export const fetchStyleWithVersions = async (
     throw new Error('STYLE_VERSIONS_FETCH_FAILED');
   }
   const data = (await res.json()) as { style: StyleWithVersions };
+  return data.style;
+};
+
+export const updateStyle = async (
+  spaceId: number,
+  styleId: number,
+  payload: UpdateStylePayload,
+): Promise<StyleSummary> => {
+  const res = await fetch(`/api/spaces/${spaceId}/styles/${styleId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    if (res.status === 400) {
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      if (data?.error === 'STYLE_HAS_GENERATED_IMAGES') {
+        throw new Error('STYLE_HAS_GENERATED_IMAGES');
+      }
+    }
+    throw new Error('STYLE_UPDATE_FAILED');
+  }
+  const data = (await res.json()) as { style: StyleSummary };
   return data.style;
 };
 
